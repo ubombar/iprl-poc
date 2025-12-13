@@ -1,0 +1,208 @@
+// proto/iprl.proto
+syntax = "proto3";
+
+package iprl;
+
+option go_package = "iprl-demo/internal/gen/proto";
+
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/duration.proto";
+
+// Basic messages 
+message RegisterProbingAgentResponse {
+  bool success = 1;
+  string message = 2;
+  ProbingAgent probing_agent = 3;
+}
+
+message RegisterProbingDirectiveGeneratorResponse {
+  bool success = 1;
+  string message = 2;
+  ProbingDirectiveGenerator probing_directive_generator = 3;
+}
+
+message UnregistrationRequest {
+  string id = 1;
+}
+
+// === Probing Agent Service ===
+
+service PAService {
+  // Probing Orchestrator calls this to send directives, PA streams back results
+  rpc Probe(stream ProbingDirective) returns (stream ForwardingInfoElement);
+  
+  // Probing Orchestrator calls this to notify of cluster changes
+  rpc Notify(ClusterStatus) returns (google.protobuf.Empty);
+}
+
+// === Probing Directive Generator Service ===
+
+service PDGService {
+  // Probing Orchestrator calls this to notify of cluster changes
+  rpc Notify(ClusterStatus) returns (google.protobuf.Empty);
+}
+
+// === Probing Orchestrator Service === 
+
+service POService {
+  // Probing Agent calls this to register itself
+  rpc RegisterProbingAgent(ProbingAgent) returns (RegisterProbingAgentResponse);
+
+  // Probing Agent calls this to unregister itself
+  rpc UnregisterProbingAgent(UnregistrationRequest) returns (google.protobuf.Empty);
+
+  // Probing Directive Generator calls this to register itself
+  rpc RegisterProbingDirectiveGenerator(ProbingDirectiveGenerator) returns (RegisterProbingDirectiveGeneratorResponse);
+
+  // Probing Directive Generator calls this to unregister itself
+  rpc UnregisterProbingDirectiveGenerator(UnregistrationRequest) returns (google.protobuf.Empty);
+  
+  // Anyone can call this to get the current status of the cluster
+  rpc GetClusterStatus(google.protobuf.Empty) returns (ClusterStatus);
+  
+  // Probing Directive Generator calls this to send probing directives
+  rpc EnqueueDirective(stream ProbingDirective) returns (google.protobuf.Empty);
+  
+  // Probing Agent calls this to send results back
+  rpc EnqueueForwardingInfoElement(stream ForwardingInfoElement) returns (google.protobuf.Empty);
+}
+
+// === Common types === 
+
+enum Protocol {
+  PROTOCOL_UNKNOWN = 0;
+  PROTOCOL_ICMP = 1;
+  PROTOCOL_TCP = 6;
+  PROTOCOL_UDP = 17;
+  PROTOCOL_DCCP = 33;
+  PROTOCOL_ICMPV6 = 58;
+}
+
+enum ProbingAgentStatus {
+  PROBING_AGENT_STATUS_ONLINE = 0;
+  PROBING_AGENT_STATUS_OFFLINE = 1;
+}
+
+enum VantagePointProvider {
+  VANTAGE_POINT_PROVIDER_UNKNOWN = 0;
+  VANTAGE_POINT_PROVIDER_GCP = 1;
+  VANTAGE_POINT_PROVIDER_AWS = 2;
+  VANTAGE_POINT_PROVIDER_EDGENET = 3;
+}
+
+enum ChangeType {
+  CHANGE_TYPE_NONE = 0;
+  CHANGE_TYPE_ADDED = 1;
+  CHANGE_TYPE_REMOVED = 2;
+  CHANGE_TYPE_MODIFIED = 3;
+}
+
+enum JustificationType {
+  JUSTIFICATION_TYPE_PROBE = 0;
+  JUSTIFICATION_TYPE_INFERENCE = 1;
+  JUSTIFICATION_TYPE_TIMEOUT = 2;
+}
+
+enum MethodVersion {
+  METHOD_VERSION_V1 = 0;
+  METHOD_VERSION_V2 = 1;
+}
+
+// === Domain types ===
+
+message VantagePoint {
+  string id = 1;
+  bytes ip = 2;
+  optional uint32 asn = 3;
+  optional string location = 4;
+  VantagePointProvider provider = 5;
+}
+
+message ProbingAgent {
+  string id = 1;
+  string software_version = 2;
+  string grpc_addr = 3;
+  VantagePoint vantage_point = 4;
+  ProbingAgentStatus status = 5;
+  uint32 probing_rate_per_second = 6;
+  map<string, string> tags = 7;
+}
+
+message ProbingDirectiveGenerator {
+  string id = 1;
+  string software_version = 2;
+  string grpc_addr = 3;
+  repeated string vantage_point_ids = 4;
+  repeated Protocol protocols = 5;
+  uint32 probe_generation_rate_per_second = 6;
+  uint32 min_ttl = 7;
+  uint32 max_ttl = 8;
+  map<string, string> tags = 9;
+  map<string, string> settings = 10;
+}
+
+message ProbingDirective {
+  string id = 1;
+  string vantage_point_id = 2;
+  bytes dst_addr = 3;
+  Protocol protocol = 4;
+  uint32 ttl = 5;
+  uint32 dst_port = 6;
+}
+
+// === Forwarding Info Element ===
+
+message MPLSLabel {
+  uint32 label = 1;
+  uint32 tc = 2;      // Traffic Class (3 bits)
+  bool s = 3;         // Bottom of stack
+  uint32 ttl = 4;
+}
+
+message MPLSInfo {
+  repeated MPLSLabel labels = 1;
+}
+
+message RTTInfo {
+  google.protobuf.Duration duration = 1;
+  google.protobuf.Timestamp sent_at = 2;
+  google.protobuf.Timestamp received_at = 3;
+}
+
+message MDAParameters {
+  int32 flow_count = 1;
+  double confidence = 2;
+  int32 max_retries = 3;
+  string algo_version = 4;
+}
+
+message ForwardingInfoElement {
+  VantagePoint vantage_point = 1;
+  uint64 flow_id = 2;
+  uint32 near_ttl = 3;
+  uint32 far_ttl = 4;
+  bytes near_reply_addr = 5;
+  bytes far_reply_addr = 6;
+  bytes destination_addr = 7;
+  optional MPLSInfo mpls = 8;
+  int32 packet_size = 9;
+  RTTInfo near_rtt = 10;
+  RTTInfo far_rtt = 11;
+  int32 packets_sent = 12;
+  int32 packets_received = 13;
+  optional MDAParameters mda = 14;
+  ChangeType change_type = 15;
+  JustificationType justification = 16;
+  MethodVersion version_tag = 17;
+  google.protobuf.Timestamp timestamp = 18;
+}
+
+// === Cluster Status ===
+
+message ClusterStatus {
+  repeated ProbingAgent agents = 1;
+  repeated ProbingDirectiveGenerator generators = 2;
+  google.protobuf.Timestamp updated_at = 3;
+  uint64 version = 4;  // Incrementing version for change detection
+}
