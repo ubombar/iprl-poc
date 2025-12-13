@@ -11,7 +11,6 @@ package proto
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
-	durationpb "google.golang.org/protobuf/types/known/durationpb"
 	emptypb "google.golang.org/protobuf/types/known/emptypb"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
@@ -26,6 +25,60 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// === Common types ===
+type VantagePointProvider int32
+
+const (
+	VantagePointProvider_VANTAGE_POINT_PROVIDER_UNKNOWN VantagePointProvider = 0
+	VantagePointProvider_VANTAGE_POINT_PROVIDER_GCP     VantagePointProvider = 1
+	VantagePointProvider_VANTAGE_POINT_PROVIDER_AWS     VantagePointProvider = 2
+	VantagePointProvider_VANTAGE_POINT_PROVIDER_EDGENET VantagePointProvider = 3
+)
+
+// Enum value maps for VantagePointProvider.
+var (
+	VantagePointProvider_name = map[int32]string{
+		0: "VANTAGE_POINT_PROVIDER_UNKNOWN",
+		1: "VANTAGE_POINT_PROVIDER_GCP",
+		2: "VANTAGE_POINT_PROVIDER_AWS",
+		3: "VANTAGE_POINT_PROVIDER_EDGENET",
+	}
+	VantagePointProvider_value = map[string]int32{
+		"VANTAGE_POINT_PROVIDER_UNKNOWN": 0,
+		"VANTAGE_POINT_PROVIDER_GCP":     1,
+		"VANTAGE_POINT_PROVIDER_AWS":     2,
+		"VANTAGE_POINT_PROVIDER_EDGENET": 3,
+	}
+)
+
+func (x VantagePointProvider) Enum() *VantagePointProvider {
+	p := new(VantagePointProvider)
+	*p = x
+	return p
+}
+
+func (x VantagePointProvider) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (VantagePointProvider) Descriptor() protoreflect.EnumDescriptor {
+	return file_iprl_proto_enumTypes[0].Descriptor()
+}
+
+func (VantagePointProvider) Type() protoreflect.EnumType {
+	return &file_iprl_proto_enumTypes[0]
+}
+
+func (x VantagePointProvider) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use VantagePointProvider.Descriptor instead.
+func (VantagePointProvider) EnumDescriptor() ([]byte, []int) {
+	return file_iprl_proto_rawDescGZIP(), []int{0}
+}
+
+// === Probing Directive ===
 type Protocol int32
 
 const (
@@ -68,11 +121,11 @@ func (x Protocol) String() string {
 }
 
 func (Protocol) Descriptor() protoreflect.EnumDescriptor {
-	return file_iprl_proto_enumTypes[0].Descriptor()
+	return file_iprl_proto_enumTypes[1].Descriptor()
 }
 
 func (Protocol) Type() protoreflect.EnumType {
-	return &file_iprl_proto_enumTypes[0]
+	return &file_iprl_proto_enumTypes[1]
 }
 
 func (x Protocol) Number() protoreflect.EnumNumber {
@@ -81,129 +134,72 @@ func (x Protocol) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use Protocol.Descriptor instead.
 func (Protocol) EnumDescriptor() ([]byte, []int) {
-	return file_iprl_proto_rawDescGZIP(), []int{0}
-}
-
-type ProbingAgentStatus int32
-
-const (
-	ProbingAgentStatus_PROBING_AGENT_STATUS_ONLINE  ProbingAgentStatus = 0
-	ProbingAgentStatus_PROBING_AGENT_STATUS_OFFLINE ProbingAgentStatus = 1
-)
-
-// Enum value maps for ProbingAgentStatus.
-var (
-	ProbingAgentStatus_name = map[int32]string{
-		0: "PROBING_AGENT_STATUS_ONLINE",
-		1: "PROBING_AGENT_STATUS_OFFLINE",
-	}
-	ProbingAgentStatus_value = map[string]int32{
-		"PROBING_AGENT_STATUS_ONLINE":  0,
-		"PROBING_AGENT_STATUS_OFFLINE": 1,
-	}
-)
-
-func (x ProbingAgentStatus) Enum() *ProbingAgentStatus {
-	p := new(ProbingAgentStatus)
-	*p = x
-	return p
-}
-
-func (x ProbingAgentStatus) String() string {
-	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
-}
-
-func (ProbingAgentStatus) Descriptor() protoreflect.EnumDescriptor {
-	return file_iprl_proto_enumTypes[1].Descriptor()
-}
-
-func (ProbingAgentStatus) Type() protoreflect.EnumType {
-	return &file_iprl_proto_enumTypes[1]
-}
-
-func (x ProbingAgentStatus) Number() protoreflect.EnumNumber {
-	return protoreflect.EnumNumber(x)
-}
-
-// Deprecated: Use ProbingAgentStatus.Descriptor instead.
-func (ProbingAgentStatus) EnumDescriptor() ([]byte, []int) {
 	return file_iprl_proto_rawDescGZIP(), []int{1}
 }
 
-type VantagePointProvider int32
+type IPVersion int32
 
 const (
-	VantagePointProvider_VANTAGE_POINT_PROVIDER_UNKNOWN VantagePointProvider = 0
-	VantagePointProvider_VANTAGE_POINT_PROVIDER_GCP     VantagePointProvider = 1
-	VantagePointProvider_VANTAGE_POINT_PROVIDER_AWS     VantagePointProvider = 2
-	VantagePointProvider_VANTAGE_POINT_PROVIDER_EDGENET VantagePointProvider = 3
+	IPVersion_IP_VERSION_4 IPVersion = 0
+	IPVersion_IP_VERSION_6 IPVersion = 1
 )
 
-// Enum value maps for VantagePointProvider.
+// Enum value maps for IPVersion.
 var (
-	VantagePointProvider_name = map[int32]string{
-		0: "VANTAGE_POINT_PROVIDER_UNKNOWN",
-		1: "VANTAGE_POINT_PROVIDER_GCP",
-		2: "VANTAGE_POINT_PROVIDER_AWS",
-		3: "VANTAGE_POINT_PROVIDER_EDGENET",
+	IPVersion_name = map[int32]string{
+		0: "IP_VERSION_4",
+		1: "IP_VERSION_6",
 	}
-	VantagePointProvider_value = map[string]int32{
-		"VANTAGE_POINT_PROVIDER_UNKNOWN": 0,
-		"VANTAGE_POINT_PROVIDER_GCP":     1,
-		"VANTAGE_POINT_PROVIDER_AWS":     2,
-		"VANTAGE_POINT_PROVIDER_EDGENET": 3,
+	IPVersion_value = map[string]int32{
+		"IP_VERSION_4": 0,
+		"IP_VERSION_6": 1,
 	}
 )
 
-func (x VantagePointProvider) Enum() *VantagePointProvider {
-	p := new(VantagePointProvider)
+func (x IPVersion) Enum() *IPVersion {
+	p := new(IPVersion)
 	*p = x
 	return p
 }
 
-func (x VantagePointProvider) String() string {
+func (x IPVersion) String() string {
 	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
 }
 
-func (VantagePointProvider) Descriptor() protoreflect.EnumDescriptor {
+func (IPVersion) Descriptor() protoreflect.EnumDescriptor {
 	return file_iprl_proto_enumTypes[2].Descriptor()
 }
 
-func (VantagePointProvider) Type() protoreflect.EnumType {
+func (IPVersion) Type() protoreflect.EnumType {
 	return &file_iprl_proto_enumTypes[2]
 }
 
-func (x VantagePointProvider) Number() protoreflect.EnumNumber {
+func (x IPVersion) Number() protoreflect.EnumNumber {
 	return protoreflect.EnumNumber(x)
 }
 
-// Deprecated: Use VantagePointProvider.Descriptor instead.
-func (VantagePointProvider) EnumDescriptor() ([]byte, []int) {
+// Deprecated: Use IPVersion.Descriptor instead.
+func (IPVersion) EnumDescriptor() ([]byte, []int) {
 	return file_iprl_proto_rawDescGZIP(), []int{2}
 }
 
+// === Forwarding Info Element ===
 type ChangeType int32
 
 const (
-	ChangeType_CHANGE_TYPE_NONE     ChangeType = 0
-	ChangeType_CHANGE_TYPE_ADDED    ChangeType = 1
-	ChangeType_CHANGE_TYPE_REMOVED  ChangeType = 2
-	ChangeType_CHANGE_TYPE_MODIFIED ChangeType = 3
+	ChangeType_WITHDRAWN ChangeType = 0
+	ChangeType_ANNOUNCED ChangeType = 1
 )
 
 // Enum value maps for ChangeType.
 var (
 	ChangeType_name = map[int32]string{
-		0: "CHANGE_TYPE_NONE",
-		1: "CHANGE_TYPE_ADDED",
-		2: "CHANGE_TYPE_REMOVED",
-		3: "CHANGE_TYPE_MODIFIED",
+		0: "WITHDRAWN",
+		1: "ANNOUNCED",
 	}
 	ChangeType_value = map[string]int32{
-		"CHANGE_TYPE_NONE":     0,
-		"CHANGE_TYPE_ADDED":    1,
-		"CHANGE_TYPE_REMOVED":  2,
-		"CHANGE_TYPE_MODIFIED": 3,
+		"WITHDRAWN": 0,
+		"ANNOUNCED": 1,
 	}
 )
 
@@ -237,22 +233,19 @@ func (ChangeType) EnumDescriptor() ([]byte, []int) {
 type JustificationType int32
 
 const (
-	JustificationType_JUSTIFICATION_TYPE_PROBE     JustificationType = 0
-	JustificationType_JUSTIFICATION_TYPE_INFERENCE JustificationType = 1
-	JustificationType_JUSTIFICATION_TYPE_TIMEOUT   JustificationType = 2
+	JustificationType_INFERRED JustificationType = 0
+	JustificationType_OBSERVED JustificationType = 1
 )
 
 // Enum value maps for JustificationType.
 var (
 	JustificationType_name = map[int32]string{
-		0: "JUSTIFICATION_TYPE_PROBE",
-		1: "JUSTIFICATION_TYPE_INFERENCE",
-		2: "JUSTIFICATION_TYPE_TIMEOUT",
+		0: "INFERRED",
+		1: "OBSERVED",
 	}
 	JustificationType_value = map[string]int32{
-		"JUSTIFICATION_TYPE_PROBE":     0,
-		"JUSTIFICATION_TYPE_INFERENCE": 1,
-		"JUSTIFICATION_TYPE_TIMEOUT":   2,
+		"INFERRED": 0,
+		"OBSERVED": 1,
 	}
 )
 
@@ -283,76 +276,32 @@ func (JustificationType) EnumDescriptor() ([]byte, []int) {
 	return file_iprl_proto_rawDescGZIP(), []int{4}
 }
 
-type MethodVersion int32
-
-const (
-	MethodVersion_METHOD_VERSION_V1 MethodVersion = 0
-	MethodVersion_METHOD_VERSION_V2 MethodVersion = 1
-)
-
-// Enum value maps for MethodVersion.
-var (
-	MethodVersion_name = map[int32]string{
-		0: "METHOD_VERSION_V1",
-		1: "METHOD_VERSION_V2",
-	}
-	MethodVersion_value = map[string]int32{
-		"METHOD_VERSION_V1": 0,
-		"METHOD_VERSION_V2": 1,
-	}
-)
-
-func (x MethodVersion) Enum() *MethodVersion {
-	p := new(MethodVersion)
-	*p = x
-	return p
-}
-
-func (x MethodVersion) String() string {
-	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
-}
-
-func (MethodVersion) Descriptor() protoreflect.EnumDescriptor {
-	return file_iprl_proto_enumTypes[5].Descriptor()
-}
-
-func (MethodVersion) Type() protoreflect.EnumType {
-	return &file_iprl_proto_enumTypes[5]
-}
-
-func (x MethodVersion) Number() protoreflect.EnumNumber {
-	return protoreflect.EnumNumber(x)
-}
-
-// Deprecated: Use MethodVersion.Descriptor instead.
-func (MethodVersion) EnumDescriptor() ([]byte, []int) {
-	return file_iprl_proto_rawDescGZIP(), []int{5}
-}
-
-// Basic messages
-type RegisterProbingAgentResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
-	Message       string                 `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
-	ProbingAgent  *ProbingAgent          `protobuf:"bytes,3,opt,name=probing_agent,json=probingAgent,proto3" json:"probing_agent,omitempty"`
+// === Probing Orchestrator ===
+type RegisterComponentRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Types that are valid to be assigned to Component:
+	//
+	//	*RegisterComponentRequest_ProbingAgentSpec
+	//	*RegisterComponentRequest_ProbingDirectiveGeneratorSpec
+	Component     isRegisterComponentRequest_Component `protobuf_oneof:"component"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *RegisterProbingAgentResponse) Reset() {
-	*x = RegisterProbingAgentResponse{}
+func (x *RegisterComponentRequest) Reset() {
+	*x = RegisterComponentRequest{}
 	mi := &file_iprl_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *RegisterProbingAgentResponse) String() string {
+func (x *RegisterComponentRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*RegisterProbingAgentResponse) ProtoMessage() {}
+func (*RegisterComponentRequest) ProtoMessage() {}
 
-func (x *RegisterProbingAgentResponse) ProtoReflect() protoreflect.Message {
+func (x *RegisterComponentRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_iprl_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -364,113 +313,157 @@ func (x *RegisterProbingAgentResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use RegisterProbingAgentResponse.ProtoReflect.Descriptor instead.
-func (*RegisterProbingAgentResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use RegisterComponentRequest.ProtoReflect.Descriptor instead.
+func (*RegisterComponentRequest) Descriptor() ([]byte, []int) {
 	return file_iprl_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *RegisterProbingAgentResponse) GetSuccess() bool {
+func (x *RegisterComponentRequest) GetComponent() isRegisterComponentRequest_Component {
 	if x != nil {
-		return x.Success
-	}
-	return false
-}
-
-func (x *RegisterProbingAgentResponse) GetMessage() string {
-	if x != nil {
-		return x.Message
-	}
-	return ""
-}
-
-func (x *RegisterProbingAgentResponse) GetProbingAgent() *ProbingAgent {
-	if x != nil {
-		return x.ProbingAgent
+		return x.Component
 	}
 	return nil
 }
 
-type RegisterProbingDirectiveGeneratorResponse struct {
-	state                     protoimpl.MessageState     `protogen:"open.v1"`
-	Success                   bool                       `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
-	Message                   string                     `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
-	ProbingDirectiveGenerator *ProbingDirectiveGenerator `protobuf:"bytes,3,opt,name=probing_directive_generator,json=probingDirectiveGenerator,proto3" json:"probing_directive_generator,omitempty"`
-	unknownFields             protoimpl.UnknownFields
-	sizeCache                 protoimpl.SizeCache
-}
-
-func (x *RegisterProbingDirectiveGeneratorResponse) Reset() {
-	*x = RegisterProbingDirectiveGeneratorResponse{}
-	mi := &file_iprl_proto_msgTypes[1]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *RegisterProbingDirectiveGeneratorResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*RegisterProbingDirectiveGeneratorResponse) ProtoMessage() {}
-
-func (x *RegisterProbingDirectiveGeneratorResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_iprl_proto_msgTypes[1]
+func (x *RegisterComponentRequest) GetProbingAgentSpec() *ProbingAgentSpec {
 	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
+		if x, ok := x.Component.(*RegisterComponentRequest_ProbingAgentSpec); ok {
+			return x.ProbingAgentSpec
 		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use RegisterProbingDirectiveGeneratorResponse.ProtoReflect.Descriptor instead.
-func (*RegisterProbingDirectiveGeneratorResponse) Descriptor() ([]byte, []int) {
-	return file_iprl_proto_rawDescGZIP(), []int{1}
-}
-
-func (x *RegisterProbingDirectiveGeneratorResponse) GetSuccess() bool {
-	if x != nil {
-		return x.Success
-	}
-	return false
-}
-
-func (x *RegisterProbingDirectiveGeneratorResponse) GetMessage() string {
-	if x != nil {
-		return x.Message
-	}
-	return ""
-}
-
-func (x *RegisterProbingDirectiveGeneratorResponse) GetProbingDirectiveGenerator() *ProbingDirectiveGenerator {
-	if x != nil {
-		return x.ProbingDirectiveGenerator
 	}
 	return nil
 }
 
-type UnregistrationRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+func (x *RegisterComponentRequest) GetProbingDirectiveGeneratorSpec() *ProbingDirectiveGeneratorSpec {
+	if x != nil {
+		if x, ok := x.Component.(*RegisterComponentRequest_ProbingDirectiveGeneratorSpec); ok {
+			return x.ProbingDirectiveGeneratorSpec
+		}
+	}
+	return nil
+}
+
+type isRegisterComponentRequest_Component interface {
+	isRegisterComponentRequest_Component()
+}
+
+type RegisterComponentRequest_ProbingAgentSpec struct {
+	ProbingAgentSpec *ProbingAgentSpec `protobuf:"bytes,1,opt,name=probing_agent_spec,json=probingAgentSpec,proto3,oneof"`
+}
+
+type RegisterComponentRequest_ProbingDirectiveGeneratorSpec struct {
+	ProbingDirectiveGeneratorSpec *ProbingDirectiveGeneratorSpec `protobuf:"bytes,2,opt,name=probing_directive_generator_spec,json=probingDirectiveGeneratorSpec,proto3,oneof"`
+}
+
+func (*RegisterComponentRequest_ProbingAgentSpec) isRegisterComponentRequest_Component() {}
+
+func (*RegisterComponentRequest_ProbingDirectiveGeneratorSpec) isRegisterComponentRequest_Component() {
+}
+
+type RegisterComponentResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Types that are valid to be assigned to Component:
+	//
+	//	*RegisterComponentResponse_ProbingAgentStatus
+	//	*RegisterComponentResponse_ProbingDirectiveGeneratorStatus
+	Component     isRegisterComponentResponse_Component `protobuf_oneof:"component"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *UnregistrationRequest) Reset() {
-	*x = UnregistrationRequest{}
+func (x *RegisterComponentResponse) Reset() {
+	*x = RegisterComponentResponse{}
+	mi := &file_iprl_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RegisterComponentResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RegisterComponentResponse) ProtoMessage() {}
+
+func (x *RegisterComponentResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_iprl_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RegisterComponentResponse.ProtoReflect.Descriptor instead.
+func (*RegisterComponentResponse) Descriptor() ([]byte, []int) {
+	return file_iprl_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *RegisterComponentResponse) GetComponent() isRegisterComponentResponse_Component {
+	if x != nil {
+		return x.Component
+	}
+	return nil
+}
+
+func (x *RegisterComponentResponse) GetProbingAgentStatus() *ProbingAgentStatus {
+	if x != nil {
+		if x, ok := x.Component.(*RegisterComponentResponse_ProbingAgentStatus); ok {
+			return x.ProbingAgentStatus
+		}
+	}
+	return nil
+}
+
+func (x *RegisterComponentResponse) GetProbingDirectiveGeneratorStatus() *ProbingDirectiveGeneratorStatus {
+	if x != nil {
+		if x, ok := x.Component.(*RegisterComponentResponse_ProbingDirectiveGeneratorStatus); ok {
+			return x.ProbingDirectiveGeneratorStatus
+		}
+	}
+	return nil
+}
+
+type isRegisterComponentResponse_Component interface {
+	isRegisterComponentResponse_Component()
+}
+
+type RegisterComponentResponse_ProbingAgentStatus struct {
+	ProbingAgentStatus *ProbingAgentStatus `protobuf:"bytes,1,opt,name=probing_agent_status,json=probingAgentStatus,proto3,oneof"`
+}
+
+type RegisterComponentResponse_ProbingDirectiveGeneratorStatus struct {
+	ProbingDirectiveGeneratorStatus *ProbingDirectiveGeneratorStatus `protobuf:"bytes,2,opt,name=probing_directive_generator_status,json=probingDirectiveGeneratorStatus,proto3,oneof"`
+}
+
+func (*RegisterComponentResponse_ProbingAgentStatus) isRegisterComponentResponse_Component() {}
+
+func (*RegisterComponentResponse_ProbingDirectiveGeneratorStatus) isRegisterComponentResponse_Component() {
+}
+
+type UnRegisterComponentRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Uuid          string                 `protobuf:"bytes,1,opt,name=uuid,proto3" json:"uuid,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UnRegisterComponentRequest) Reset() {
+	*x = UnRegisterComponentRequest{}
 	mi := &file_iprl_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *UnregistrationRequest) String() string {
+func (x *UnRegisterComponentRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*UnregistrationRequest) ProtoMessage() {}
+func (*UnRegisterComponentRequest) ProtoMessage() {}
 
-func (x *UnregistrationRequest) ProtoReflect() protoreflect.Message {
+func (x *UnRegisterComponentRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_iprl_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -482,25 +475,25 @@ func (x *UnregistrationRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use UnregistrationRequest.ProtoReflect.Descriptor instead.
-func (*UnregistrationRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use UnRegisterComponentRequest.ProtoReflect.Descriptor instead.
+func (*UnRegisterComponentRequest) Descriptor() ([]byte, []int) {
 	return file_iprl_proto_rawDescGZIP(), []int{2}
 }
 
-func (x *UnregistrationRequest) GetId() string {
+func (x *UnRegisterComponentRequest) GetUuid() string {
 	if x != nil {
-		return x.Id
+		return x.Uuid
 	}
 	return ""
 }
 
+// === Domain types ===
 type VantagePoint struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Ip            []byte                 `protobuf:"bytes,2,opt,name=ip,proto3" json:"ip,omitempty"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	PublicAddress []byte                 `protobuf:"bytes,2,opt,name=public_address,json=publicAddress,proto3" json:"public_address,omitempty"`
 	Asn           *uint32                `protobuf:"varint,3,opt,name=asn,proto3,oneof" json:"asn,omitempty"`
-	Location      *string                `protobuf:"bytes,4,opt,name=location,proto3,oneof" json:"location,omitempty"`
-	Provider      VantagePointProvider   `protobuf:"varint,5,opt,name=provider,proto3,enum=iprl.VantagePointProvider" json:"provider,omitempty"`
+	Provider      VantagePointProvider   `protobuf:"varint,4,opt,name=provider,proto3,enum=iprl.VantagePointProvider" json:"provider,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -535,16 +528,16 @@ func (*VantagePoint) Descriptor() ([]byte, []int) {
 	return file_iprl_proto_rawDescGZIP(), []int{3}
 }
 
-func (x *VantagePoint) GetId() string {
+func (x *VantagePoint) GetName() string {
 	if x != nil {
-		return x.Id
+		return x.Name
 	}
 	return ""
 }
 
-func (x *VantagePoint) GetIp() []byte {
+func (x *VantagePoint) GetPublicAddress() []byte {
 	if x != nil {
-		return x.Ip
+		return x.PublicAddress
 	}
 	return nil
 }
@@ -556,13 +549,6 @@ func (x *VantagePoint) GetAsn() uint32 {
 	return 0
 }
 
-func (x *VantagePoint) GetLocation() string {
-	if x != nil && x.Location != nil {
-		return *x.Location
-	}
-	return ""
-}
-
 func (x *VantagePoint) GetProvider() VantagePointProvider {
 	if x != nil {
 		return x.Provider
@@ -570,33 +556,33 @@ func (x *VantagePoint) GetProvider() VantagePointProvider {
 	return VantagePointProvider_VANTAGE_POINT_PROVIDER_UNKNOWN
 }
 
-type ProbingAgent struct {
-	state                protoimpl.MessageState `protogen:"open.v1"`
-	Id                   string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	SoftwareVersion      string                 `protobuf:"bytes,2,opt,name=software_version,json=softwareVersion,proto3" json:"software_version,omitempty"`
-	GrpcAddr             string                 `protobuf:"bytes,3,opt,name=grpc_addr,json=grpcAddr,proto3" json:"grpc_addr,omitempty"`
-	VantagePoint         *VantagePoint          `protobuf:"bytes,4,opt,name=vantage_point,json=vantagePoint,proto3" json:"vantage_point,omitempty"`
-	Status               ProbingAgentStatus     `protobuf:"varint,5,opt,name=status,proto3,enum=iprl.ProbingAgentStatus" json:"status,omitempty"`
-	ProbingRatePerSecond uint32                 `protobuf:"varint,6,opt,name=probing_rate_per_second,json=probingRatePerSecond,proto3" json:"probing_rate_per_second,omitempty"`
-	Tags                 map[string]string      `protobuf:"bytes,7,rep,name=tags,proto3" json:"tags,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
+type ProbingAgentSpec struct {
+	state                 protoimpl.MessageState `protogen:"open.v1"`
+	SoftwareVersion       string                 `protobuf:"bytes,2,opt,name=software_version,json=softwareVersion,proto3" json:"software_version,omitempty"`
+	InterfaceVersion      string                 `protobuf:"bytes,3,opt,name=interface_version,json=interfaceVersion,proto3" json:"interface_version,omitempty"`
+	InterfaceAddr         string                 `protobuf:"bytes,4,opt,name=interface_addr,json=interfaceAddr,proto3" json:"interface_addr,omitempty"`
+	VantagePoint          *VantagePoint          `protobuf:"bytes,5,opt,name=vantage_point,json=vantagePoint,proto3" json:"vantage_point,omitempty"`
+	DirectiveBufferLength uint32                 `protobuf:"varint,6,opt,name=directive_buffer_length,json=directiveBufferLength,proto3" json:"directive_buffer_length,omitempty"`
+	OrchestratorAddress   string                 `protobuf:"bytes,9,opt,name=orchestrator_address,json=orchestratorAddress,proto3" json:"orchestrator_address,omitempty"`
+	NumRetries            uint32                 `protobuf:"varint,10,opt,name=num_retries,json=numRetries,proto3" json:"num_retries,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
 }
 
-func (x *ProbingAgent) Reset() {
-	*x = ProbingAgent{}
+func (x *ProbingAgentSpec) Reset() {
+	*x = ProbingAgentSpec{}
 	mi := &file_iprl_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *ProbingAgent) String() string {
+func (x *ProbingAgentSpec) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ProbingAgent) ProtoMessage() {}
+func (*ProbingAgentSpec) ProtoMessage() {}
 
-func (x *ProbingAgent) ProtoReflect() protoreflect.Message {
+func (x *ProbingAgentSpec) ProtoReflect() protoreflect.Message {
 	mi := &file_iprl_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -608,90 +594,83 @@ func (x *ProbingAgent) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ProbingAgent.ProtoReflect.Descriptor instead.
-func (*ProbingAgent) Descriptor() ([]byte, []int) {
+// Deprecated: Use ProbingAgentSpec.ProtoReflect.Descriptor instead.
+func (*ProbingAgentSpec) Descriptor() ([]byte, []int) {
 	return file_iprl_proto_rawDescGZIP(), []int{4}
 }
 
-func (x *ProbingAgent) GetId() string {
-	if x != nil {
-		return x.Id
-	}
-	return ""
-}
-
-func (x *ProbingAgent) GetSoftwareVersion() string {
+func (x *ProbingAgentSpec) GetSoftwareVersion() string {
 	if x != nil {
 		return x.SoftwareVersion
 	}
 	return ""
 }
 
-func (x *ProbingAgent) GetGrpcAddr() string {
+func (x *ProbingAgentSpec) GetInterfaceVersion() string {
 	if x != nil {
-		return x.GrpcAddr
+		return x.InterfaceVersion
 	}
 	return ""
 }
 
-func (x *ProbingAgent) GetVantagePoint() *VantagePoint {
+func (x *ProbingAgentSpec) GetInterfaceAddr() string {
+	if x != nil {
+		return x.InterfaceAddr
+	}
+	return ""
+}
+
+func (x *ProbingAgentSpec) GetVantagePoint() *VantagePoint {
 	if x != nil {
 		return x.VantagePoint
 	}
 	return nil
 }
 
-func (x *ProbingAgent) GetStatus() ProbingAgentStatus {
+func (x *ProbingAgentSpec) GetDirectiveBufferLength() uint32 {
 	if x != nil {
-		return x.Status
-	}
-	return ProbingAgentStatus_PROBING_AGENT_STATUS_ONLINE
-}
-
-func (x *ProbingAgent) GetProbingRatePerSecond() uint32 {
-	if x != nil {
-		return x.ProbingRatePerSecond
+		return x.DirectiveBufferLength
 	}
 	return 0
 }
 
-func (x *ProbingAgent) GetTags() map[string]string {
+func (x *ProbingAgentSpec) GetOrchestratorAddress() string {
 	if x != nil {
-		return x.Tags
+		return x.OrchestratorAddress
 	}
-	return nil
+	return ""
 }
 
-type ProbingDirectiveGenerator struct {
-	state                        protoimpl.MessageState `protogen:"open.v1"`
-	Id                           string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	SoftwareVersion              string                 `protobuf:"bytes,2,opt,name=software_version,json=softwareVersion,proto3" json:"software_version,omitempty"`
-	GrpcAddr                     string                 `protobuf:"bytes,3,opt,name=grpc_addr,json=grpcAddr,proto3" json:"grpc_addr,omitempty"`
-	VantagePointIds              []string               `protobuf:"bytes,4,rep,name=vantage_point_ids,json=vantagePointIds,proto3" json:"vantage_point_ids,omitempty"`
-	Protocols                    []Protocol             `protobuf:"varint,5,rep,packed,name=protocols,proto3,enum=iprl.Protocol" json:"protocols,omitempty"`
-	ProbeGenerationRatePerSecond uint32                 `protobuf:"varint,6,opt,name=probe_generation_rate_per_second,json=probeGenerationRatePerSecond,proto3" json:"probe_generation_rate_per_second,omitempty"`
-	MinTtl                       uint32                 `protobuf:"varint,7,opt,name=min_ttl,json=minTtl,proto3" json:"min_ttl,omitempty"`
-	MaxTtl                       uint32                 `protobuf:"varint,8,opt,name=max_ttl,json=maxTtl,proto3" json:"max_ttl,omitempty"`
-	Tags                         map[string]string      `protobuf:"bytes,9,rep,name=tags,proto3" json:"tags,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	Settings                     map[string]string      `protobuf:"bytes,10,rep,name=settings,proto3" json:"settings,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	unknownFields                protoimpl.UnknownFields
-	sizeCache                    protoimpl.SizeCache
+func (x *ProbingAgentSpec) GetNumRetries() uint32 {
+	if x != nil {
+		return x.NumRetries
+	}
+	return 0
 }
 
-func (x *ProbingDirectiveGenerator) Reset() {
-	*x = ProbingDirectiveGenerator{}
+type ProbingAgentStatus struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Uuid           string                 `protobuf:"bytes,1,opt,name=uuid,proto3" json:"uuid,omitempty"`
+	ProbingRateCap uint32                 `protobuf:"varint,2,opt,name=probing_rate_cap,json=probingRateCap,proto3" json:"probing_rate_cap,omitempty"`
+	Tags           map[string]string      `protobuf:"bytes,3,rep,name=tags,proto3" json:"tags,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *ProbingAgentStatus) Reset() {
+	*x = ProbingAgentStatus{}
 	mi := &file_iprl_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *ProbingDirectiveGenerator) String() string {
+func (x *ProbingAgentStatus) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ProbingDirectiveGenerator) ProtoMessage() {}
+func (*ProbingAgentStatus) ProtoMessage() {}
 
-func (x *ProbingDirectiveGenerator) ProtoReflect() protoreflect.Message {
+func (x *ProbingAgentStatus) ProtoReflect() protoreflect.Message {
 	mi := &file_iprl_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -703,96 +682,436 @@ func (x *ProbingDirectiveGenerator) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ProbingDirectiveGenerator.ProtoReflect.Descriptor instead.
-func (*ProbingDirectiveGenerator) Descriptor() ([]byte, []int) {
+// Deprecated: Use ProbingAgentStatus.ProtoReflect.Descriptor instead.
+func (*ProbingAgentStatus) Descriptor() ([]byte, []int) {
 	return file_iprl_proto_rawDescGZIP(), []int{5}
 }
 
-func (x *ProbingDirectiveGenerator) GetId() string {
+func (x *ProbingAgentStatus) GetUuid() string {
 	if x != nil {
-		return x.Id
+		return x.Uuid
 	}
 	return ""
 }
 
-func (x *ProbingDirectiveGenerator) GetSoftwareVersion() string {
+func (x *ProbingAgentStatus) GetProbingRateCap() uint32 {
 	if x != nil {
-		return x.SoftwareVersion
-	}
-	return ""
-}
-
-func (x *ProbingDirectiveGenerator) GetGrpcAddr() string {
-	if x != nil {
-		return x.GrpcAddr
-	}
-	return ""
-}
-
-func (x *ProbingDirectiveGenerator) GetVantagePointIds() []string {
-	if x != nil {
-		return x.VantagePointIds
-	}
-	return nil
-}
-
-func (x *ProbingDirectiveGenerator) GetProtocols() []Protocol {
-	if x != nil {
-		return x.Protocols
-	}
-	return nil
-}
-
-func (x *ProbingDirectiveGenerator) GetProbeGenerationRatePerSecond() uint32 {
-	if x != nil {
-		return x.ProbeGenerationRatePerSecond
+		return x.ProbingRateCap
 	}
 	return 0
 }
 
-func (x *ProbingDirectiveGenerator) GetMinTtl() uint32 {
-	if x != nil {
-		return x.MinTtl
-	}
-	return 0
-}
-
-func (x *ProbingDirectiveGenerator) GetMaxTtl() uint32 {
-	if x != nil {
-		return x.MaxTtl
-	}
-	return 0
-}
-
-func (x *ProbingDirectiveGenerator) GetTags() map[string]string {
+func (x *ProbingAgentStatus) GetTags() map[string]string {
 	if x != nil {
 		return x.Tags
 	}
 	return nil
 }
 
-func (x *ProbingDirectiveGenerator) GetSettings() map[string]string {
+type ProbingDirectiveGeneratorSpec struct {
+	state                       protoimpl.MessageState `protogen:"open.v1"`
+	SoftwareVersion             string                 `protobuf:"bytes,2,opt,name=software_version,json=softwareVersion,proto3" json:"software_version,omitempty"`
+	InterfaceVersion            string                 `protobuf:"bytes,3,opt,name=interface_version,json=interfaceVersion,proto3" json:"interface_version,omitempty"`
+	InterfaceAddr               string                 `protobuf:"bytes,4,opt,name=interface_addr,json=interfaceAddr,proto3" json:"interface_addr,omitempty"`
+	Protocols                   []Protocol             `protobuf:"varint,5,rep,packed,name=protocols,proto3,enum=iprl.Protocol" json:"protocols,omitempty"`
+	MinTtl                      uint32                 `protobuf:"varint,7,opt,name=min_ttl,json=minTtl,proto3" json:"min_ttl,omitempty"`
+	MaxTtl                      uint32                 `protobuf:"varint,8,opt,name=max_ttl,json=maxTtl,proto3" json:"max_ttl,omitempty"`
+	OrchestratorAddress         string                 `protobuf:"bytes,9,opt,name=orchestrator_address,json=orchestratorAddress,proto3" json:"orchestrator_address,omitempty"`
+	NumRetries                  uint32                 `protobuf:"varint,10,opt,name=num_retries,json=numRetries,proto3" json:"num_retries,omitempty"`
+	DefaultGlobalProbingRateCap uint32                 `protobuf:"varint,11,opt,name=default_global_probing_rate_cap,json=defaultGlobalProbingRateCap,proto3" json:"default_global_probing_rate_cap,omitempty"`
+	Seed                        int64                  `protobuf:"varint,12,opt,name=seed,proto3" json:"seed,omitempty"`
+	unknownFields               protoimpl.UnknownFields
+	sizeCache                   protoimpl.SizeCache
+}
+
+func (x *ProbingDirectiveGeneratorSpec) Reset() {
+	*x = ProbingDirectiveGeneratorSpec{}
+	mi := &file_iprl_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ProbingDirectiveGeneratorSpec) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ProbingDirectiveGeneratorSpec) ProtoMessage() {}
+
+func (x *ProbingDirectiveGeneratorSpec) ProtoReflect() protoreflect.Message {
+	mi := &file_iprl_proto_msgTypes[6]
 	if x != nil {
-		return x.Settings
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ProbingDirectiveGeneratorSpec.ProtoReflect.Descriptor instead.
+func (*ProbingDirectiveGeneratorSpec) Descriptor() ([]byte, []int) {
+	return file_iprl_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *ProbingDirectiveGeneratorSpec) GetSoftwareVersion() string {
+	if x != nil {
+		return x.SoftwareVersion
+	}
+	return ""
+}
+
+func (x *ProbingDirectiveGeneratorSpec) GetInterfaceVersion() string {
+	if x != nil {
+		return x.InterfaceVersion
+	}
+	return ""
+}
+
+func (x *ProbingDirectiveGeneratorSpec) GetInterfaceAddr() string {
+	if x != nil {
+		return x.InterfaceAddr
+	}
+	return ""
+}
+
+func (x *ProbingDirectiveGeneratorSpec) GetProtocols() []Protocol {
+	if x != nil {
+		return x.Protocols
 	}
 	return nil
 }
 
+func (x *ProbingDirectiveGeneratorSpec) GetMinTtl() uint32 {
+	if x != nil {
+		return x.MinTtl
+	}
+	return 0
+}
+
+func (x *ProbingDirectiveGeneratorSpec) GetMaxTtl() uint32 {
+	if x != nil {
+		return x.MaxTtl
+	}
+	return 0
+}
+
+func (x *ProbingDirectiveGeneratorSpec) GetOrchestratorAddress() string {
+	if x != nil {
+		return x.OrchestratorAddress
+	}
+	return ""
+}
+
+func (x *ProbingDirectiveGeneratorSpec) GetNumRetries() uint32 {
+	if x != nil {
+		return x.NumRetries
+	}
+	return 0
+}
+
+func (x *ProbingDirectiveGeneratorSpec) GetDefaultGlobalProbingRateCap() uint32 {
+	if x != nil {
+		return x.DefaultGlobalProbingRateCap
+	}
+	return 0
+}
+
+func (x *ProbingDirectiveGeneratorSpec) GetSeed() int64 {
+	if x != nil {
+		return x.Seed
+	}
+	return 0
+}
+
+type ProbingDirectiveGeneratorStatus struct {
+	state                                protoimpl.MessageState `protogen:"open.v1"`
+	Uuid                                 string                 `protobuf:"bytes,1,opt,name=uuid,proto3" json:"uuid,omitempty"`
+	ProbeGenerationRatePerSecondPerAgent uint32                 `protobuf:"varint,6,opt,name=probe_generation_rate_per_second_per_agent,json=probeGenerationRatePerSecondPerAgent,proto3" json:"probe_generation_rate_per_second_per_agent,omitempty"`
+	SgentSpecs                           []*ProbingAgentSpec    `protobuf:"bytes,7,rep,name=sgent_specs,json=sgentSpecs,proto3" json:"sgent_specs,omitempty"`
+	Tags                                 map[string]string      `protobuf:"bytes,9,rep,name=tags,proto3" json:"tags,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	unknownFields                        protoimpl.UnknownFields
+	sizeCache                            protoimpl.SizeCache
+}
+
+func (x *ProbingDirectiveGeneratorStatus) Reset() {
+	*x = ProbingDirectiveGeneratorStatus{}
+	mi := &file_iprl_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ProbingDirectiveGeneratorStatus) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ProbingDirectiveGeneratorStatus) ProtoMessage() {}
+
+func (x *ProbingDirectiveGeneratorStatus) ProtoReflect() protoreflect.Message {
+	mi := &file_iprl_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ProbingDirectiveGeneratorStatus.ProtoReflect.Descriptor instead.
+func (*ProbingDirectiveGeneratorStatus) Descriptor() ([]byte, []int) {
+	return file_iprl_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *ProbingDirectiveGeneratorStatus) GetUuid() string {
+	if x != nil {
+		return x.Uuid
+	}
+	return ""
+}
+
+func (x *ProbingDirectiveGeneratorStatus) GetProbeGenerationRatePerSecondPerAgent() uint32 {
+	if x != nil {
+		return x.ProbeGenerationRatePerSecondPerAgent
+	}
+	return 0
+}
+
+func (x *ProbingDirectiveGeneratorStatus) GetSgentSpecs() []*ProbingAgentSpec {
+	if x != nil {
+		return x.SgentSpecs
+	}
+	return nil
+}
+
+func (x *ProbingDirectiveGeneratorStatus) GetTags() map[string]string {
+	if x != nil {
+		return x.Tags
+	}
+	return nil
+}
+
+type ProbingOrchestratorSpec struct {
+	state                       protoimpl.MessageState `protogen:"open.v1"`
+	SoftwareVersion             string                 `protobuf:"bytes,2,opt,name=software_version,json=softwareVersion,proto3" json:"software_version,omitempty"`
+	InterfaceVersion            string                 `protobuf:"bytes,3,opt,name=interface_version,json=interfaceVersion,proto3" json:"interface_version,omitempty"`
+	InterfaceAddr               string                 `protobuf:"bytes,4,opt,name=interface_addr,json=interfaceAddr,proto3" json:"interface_addr,omitempty"`
+	DirectiveBufferLength       uint32                 `protobuf:"varint,6,opt,name=directive_buffer_length,json=directiveBufferLength,proto3" json:"directive_buffer_length,omitempty"`
+	ElementBufferLength         uint32                 `protobuf:"varint,7,opt,name=element_buffer_length,json=elementBufferLength,proto3" json:"element_buffer_length,omitempty"`
+	DefaultGlobalProbingRateCap uint32                 `protobuf:"varint,8,opt,name=default_global_probing_rate_cap,json=defaultGlobalProbingRateCap,proto3" json:"default_global_probing_rate_cap,omitempty"`
+	NumRetries                  uint32                 `protobuf:"varint,10,opt,name=num_retries,json=numRetries,proto3" json:"num_retries,omitempty"`
+	unknownFields               protoimpl.UnknownFields
+	sizeCache                   protoimpl.SizeCache
+}
+
+func (x *ProbingOrchestratorSpec) Reset() {
+	*x = ProbingOrchestratorSpec{}
+	mi := &file_iprl_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ProbingOrchestratorSpec) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ProbingOrchestratorSpec) ProtoMessage() {}
+
+func (x *ProbingOrchestratorSpec) ProtoReflect() protoreflect.Message {
+	mi := &file_iprl_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ProbingOrchestratorSpec.ProtoReflect.Descriptor instead.
+func (*ProbingOrchestratorSpec) Descriptor() ([]byte, []int) {
+	return file_iprl_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *ProbingOrchestratorSpec) GetSoftwareVersion() string {
+	if x != nil {
+		return x.SoftwareVersion
+	}
+	return ""
+}
+
+func (x *ProbingOrchestratorSpec) GetInterfaceVersion() string {
+	if x != nil {
+		return x.InterfaceVersion
+	}
+	return ""
+}
+
+func (x *ProbingOrchestratorSpec) GetInterfaceAddr() string {
+	if x != nil {
+		return x.InterfaceAddr
+	}
+	return ""
+}
+
+func (x *ProbingOrchestratorSpec) GetDirectiveBufferLength() uint32 {
+	if x != nil {
+		return x.DirectiveBufferLength
+	}
+	return 0
+}
+
+func (x *ProbingOrchestratorSpec) GetElementBufferLength() uint32 {
+	if x != nil {
+		return x.ElementBufferLength
+	}
+	return 0
+}
+
+func (x *ProbingOrchestratorSpec) GetDefaultGlobalProbingRateCap() uint32 {
+	if x != nil {
+		return x.DefaultGlobalProbingRateCap
+	}
+	return 0
+}
+
+func (x *ProbingOrchestratorSpec) GetNumRetries() uint32 {
+	if x != nil {
+		return x.NumRetries
+	}
+	return 0
+}
+
+type ProbingOrchestratorStatus struct {
+	state                protoimpl.MessageState `protogen:"open.v1"`
+	GlobalProbingRateCap uint32                 `protobuf:"varint,2,opt,name=global_probing_rate_cap,json=globalProbingRateCap,proto3" json:"global_probing_rate_cap,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
+}
+
+func (x *ProbingOrchestratorStatus) Reset() {
+	*x = ProbingOrchestratorStatus{}
+	mi := &file_iprl_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ProbingOrchestratorStatus) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ProbingOrchestratorStatus) ProtoMessage() {}
+
+func (x *ProbingOrchestratorStatus) ProtoReflect() protoreflect.Message {
+	mi := &file_iprl_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ProbingOrchestratorStatus.ProtoReflect.Descriptor instead.
+func (*ProbingOrchestratorStatus) Descriptor() ([]byte, []int) {
+	return file_iprl_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *ProbingOrchestratorStatus) GetGlobalProbingRateCap() uint32 {
+	if x != nil {
+		return x.GlobalProbingRateCap
+	}
+	return 0
+}
+
+type HeaderParameters struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	SourcePort      *uint32                `protobuf:"varint,1,opt,name=source_port,json=sourcePort,proto3,oneof" json:"source_port,omitempty"`                // 16-bits
+	DestinationPort *uint32                `protobuf:"varint,2,opt,name=destination_port,json=destinationPort,proto3,oneof" json:"destination_port,omitempty"` // 16-bits
+	TypeOfService   *uint32                `protobuf:"varint,3,opt,name=type_of_service,json=typeOfService,proto3,oneof" json:"type_of_service,omitempty"`     // 8-bits
+	DfFlag          *bool                  `protobuf:"varint,4,opt,name=df_flag,json=dfFlag,proto3,oneof" json:"df_flag,omitempty"`                            // 1-bit
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *HeaderParameters) Reset() {
+	*x = HeaderParameters{}
+	mi := &file_iprl_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *HeaderParameters) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*HeaderParameters) ProtoMessage() {}
+
+func (x *HeaderParameters) ProtoReflect() protoreflect.Message {
+	mi := &file_iprl_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use HeaderParameters.ProtoReflect.Descriptor instead.
+func (*HeaderParameters) Descriptor() ([]byte, []int) {
+	return file_iprl_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *HeaderParameters) GetSourcePort() uint32 {
+	if x != nil && x.SourcePort != nil {
+		return *x.SourcePort
+	}
+	return 0
+}
+
+func (x *HeaderParameters) GetDestinationPort() uint32 {
+	if x != nil && x.DestinationPort != nil {
+		return *x.DestinationPort
+	}
+	return 0
+}
+
+func (x *HeaderParameters) GetTypeOfService() uint32 {
+	if x != nil && x.TypeOfService != nil {
+		return *x.TypeOfService
+	}
+	return 0
+}
+
+func (x *HeaderParameters) GetDfFlag() bool {
+	if x != nil && x.DfFlag != nil {
+		return *x.DfFlag
+	}
+	return false
+}
+
 type ProbingDirective struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	Id             string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	VantagePointId string                 `protobuf:"bytes,2,opt,name=vantage_point_id,json=vantagePointId,proto3" json:"vantage_point_id,omitempty"`
-	DstAddr        []byte                 `protobuf:"bytes,3,opt,name=dst_addr,json=dstAddr,proto3" json:"dst_addr,omitempty"`
-	Protocol       Protocol               `protobuf:"varint,4,opt,name=protocol,proto3,enum=iprl.Protocol" json:"protocol,omitempty"`
-	Ttl            uint32                 `protobuf:"varint,5,opt,name=ttl,proto3" json:"ttl,omitempty"`
-	DstPort        uint32                 `protobuf:"varint,6,opt,name=dst_port,json=dstPort,proto3" json:"dst_port,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	VantagePointName   string                 `protobuf:"bytes,1,opt,name=vantage_point_name,json=vantagePointName,proto3" json:"vantage_point_name,omitempty"`
+	DestinationAddress []byte                 `protobuf:"bytes,2,opt,name=destination_address,json=destinationAddress,proto3" json:"destination_address,omitempty"`
+	IpVersion          IPVersion              `protobuf:"varint,3,opt,name=ip_version,json=ipVersion,proto3,enum=iprl.IPVersion" json:"ip_version,omitempty"`
+	Protocol           Protocol               `protobuf:"varint,4,opt,name=protocol,proto3,enum=iprl.Protocol" json:"protocol,omitempty"`
+	HeaderParameters   *HeaderParameters      `protobuf:"bytes,5,opt,name=header_parameters,json=headerParameters,proto3,oneof" json:"header_parameters,omitempty"`
+	NearTtl            uint32                 `protobuf:"varint,6,opt,name=near_ttl,json=nearTtl,proto3" json:"near_ttl,omitempty"`
+	DestinationPort    uint32                 `protobuf:"varint,7,opt,name=destination_port,json=destinationPort,proto3" json:"destination_port,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *ProbingDirective) Reset() {
 	*x = ProbingDirective{}
-	mi := &file_iprl_proto_msgTypes[6]
+	mi := &file_iprl_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -804,7 +1123,7 @@ func (x *ProbingDirective) String() string {
 func (*ProbingDirective) ProtoMessage() {}
 
 func (x *ProbingDirective) ProtoReflect() protoreflect.Message {
-	mi := &file_iprl_proto_msgTypes[6]
+	mi := &file_iprl_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -817,28 +1136,28 @@ func (x *ProbingDirective) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProbingDirective.ProtoReflect.Descriptor instead.
 func (*ProbingDirective) Descriptor() ([]byte, []int) {
-	return file_iprl_proto_rawDescGZIP(), []int{6}
+	return file_iprl_proto_rawDescGZIP(), []int{11}
 }
 
-func (x *ProbingDirective) GetId() string {
+func (x *ProbingDirective) GetVantagePointName() string {
 	if x != nil {
-		return x.Id
+		return x.VantagePointName
 	}
 	return ""
 }
 
-func (x *ProbingDirective) GetVantagePointId() string {
+func (x *ProbingDirective) GetDestinationAddress() []byte {
 	if x != nil {
-		return x.VantagePointId
-	}
-	return ""
-}
-
-func (x *ProbingDirective) GetDstAddr() []byte {
-	if x != nil {
-		return x.DstAddr
+		return x.DestinationAddress
 	}
 	return nil
+}
+
+func (x *ProbingDirective) GetIpVersion() IPVersion {
+	if x != nil {
+		return x.IpVersion
+	}
+	return IPVersion_IP_VERSION_4
 }
 
 func (x *ProbingDirective) GetProtocol() Protocol {
@@ -848,16 +1167,23 @@ func (x *ProbingDirective) GetProtocol() Protocol {
 	return Protocol_PROTOCOL_UNKNOWN
 }
 
-func (x *ProbingDirective) GetTtl() uint32 {
+func (x *ProbingDirective) GetHeaderParameters() *HeaderParameters {
 	if x != nil {
-		return x.Ttl
+		return x.HeaderParameters
+	}
+	return nil
+}
+
+func (x *ProbingDirective) GetNearTtl() uint32 {
+	if x != nil {
+		return x.NearTtl
 	}
 	return 0
 }
 
-func (x *ProbingDirective) GetDstPort() uint32 {
+func (x *ProbingDirective) GetDestinationPort() uint32 {
 	if x != nil {
-		return x.DstPort
+		return x.DestinationPort
 	}
 	return 0
 }
@@ -865,8 +1191,8 @@ func (x *ProbingDirective) GetDstPort() uint32 {
 type MPLSLabel struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Label         uint32                 `protobuf:"varint,1,opt,name=label,proto3" json:"label,omitempty"`
-	Tc            uint32                 `protobuf:"varint,2,opt,name=tc,proto3" json:"tc,omitempty"` // Traffic Class (3 bits)
-	S             bool                   `protobuf:"varint,3,opt,name=s,proto3" json:"s,omitempty"`   // Bottom of stack
+	Tc            uint32                 `protobuf:"varint,2,opt,name=tc,proto3" json:"tc,omitempty"`
+	S             bool                   `protobuf:"varint,3,opt,name=s,proto3" json:"s,omitempty"`
 	Ttl           uint32                 `protobuf:"varint,4,opt,name=ttl,proto3" json:"ttl,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -874,7 +1200,7 @@ type MPLSLabel struct {
 
 func (x *MPLSLabel) Reset() {
 	*x = MPLSLabel{}
-	mi := &file_iprl_proto_msgTypes[7]
+	mi := &file_iprl_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -886,7 +1212,7 @@ func (x *MPLSLabel) String() string {
 func (*MPLSLabel) ProtoMessage() {}
 
 func (x *MPLSLabel) ProtoReflect() protoreflect.Message {
-	mi := &file_iprl_proto_msgTypes[7]
+	mi := &file_iprl_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -899,7 +1225,7 @@ func (x *MPLSLabel) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MPLSLabel.ProtoReflect.Descriptor instead.
 func (*MPLSLabel) Descriptor() ([]byte, []int) {
-	return file_iprl_proto_rawDescGZIP(), []int{7}
+	return file_iprl_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *MPLSLabel) GetLabel() uint32 {
@@ -939,7 +1265,7 @@ type MPLSInfo struct {
 
 func (x *MPLSInfo) Reset() {
 	*x = MPLSInfo{}
-	mi := &file_iprl_proto_msgTypes[8]
+	mi := &file_iprl_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -951,7 +1277,7 @@ func (x *MPLSInfo) String() string {
 func (*MPLSInfo) ProtoMessage() {}
 
 func (x *MPLSInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_iprl_proto_msgTypes[8]
+	mi := &file_iprl_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -964,7 +1290,7 @@ func (x *MPLSInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MPLSInfo.ProtoReflect.Descriptor instead.
 func (*MPLSInfo) Descriptor() ([]byte, []int) {
-	return file_iprl_proto_rawDescGZIP(), []int{8}
+	return file_iprl_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *MPLSInfo) GetLabels() []*MPLSLabel {
@@ -976,16 +1302,15 @@ func (x *MPLSInfo) GetLabels() []*MPLSLabel {
 
 type RTTInfo struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Duration      *durationpb.Duration   `protobuf:"bytes,1,opt,name=duration,proto3" json:"duration,omitempty"`
-	SentAt        *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=sent_at,json=sentAt,proto3" json:"sent_at,omitempty"`
-	ReceivedAt    *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=received_at,json=receivedAt,proto3" json:"received_at,omitempty"`
+	SentAt        *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=sent_at,json=sentAt,proto3" json:"sent_at,omitempty"`
+	ReceivedAt    *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=received_at,json=receivedAt,proto3" json:"received_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *RTTInfo) Reset() {
 	*x = RTTInfo{}
-	mi := &file_iprl_proto_msgTypes[9]
+	mi := &file_iprl_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -997,7 +1322,7 @@ func (x *RTTInfo) String() string {
 func (*RTTInfo) ProtoMessage() {}
 
 func (x *RTTInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_iprl_proto_msgTypes[9]
+	mi := &file_iprl_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1010,14 +1335,7 @@ func (x *RTTInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RTTInfo.ProtoReflect.Descriptor instead.
 func (*RTTInfo) Descriptor() ([]byte, []int) {
-	return file_iprl_proto_rawDescGZIP(), []int{9}
-}
-
-func (x *RTTInfo) GetDuration() *durationpb.Duration {
-	if x != nil {
-		return x.Duration
-	}
-	return nil
+	return file_iprl_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *RTTInfo) GetSentAt() *timestamppb.Timestamp {
@@ -1046,7 +1364,7 @@ type MDAParameters struct {
 
 func (x *MDAParameters) Reset() {
 	*x = MDAParameters{}
-	mi := &file_iprl_proto_msgTypes[10]
+	mi := &file_iprl_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1058,7 +1376,7 @@ func (x *MDAParameters) String() string {
 func (*MDAParameters) ProtoMessage() {}
 
 func (x *MDAParameters) ProtoReflect() protoreflect.Message {
-	mi := &file_iprl_proto_msgTypes[10]
+	mi := &file_iprl_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1071,7 +1389,7 @@ func (x *MDAParameters) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MDAParameters.ProtoReflect.Descriptor instead.
 func (*MDAParameters) Descriptor() ([]byte, []int) {
-	return file_iprl_proto_rawDescGZIP(), []int{10}
+	return file_iprl_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *MDAParameters) GetFlowCount() int32 {
@@ -1103,32 +1421,31 @@ func (x *MDAParameters) GetAlgoVersion() string {
 }
 
 type ForwardingInfoElement struct {
-	state           protoimpl.MessageState `protogen:"open.v1"`
-	VantagePoint    *VantagePoint          `protobuf:"bytes,1,opt,name=vantage_point,json=vantagePoint,proto3" json:"vantage_point,omitempty"`
-	FlowId          uint64                 `protobuf:"varint,2,opt,name=flow_id,json=flowId,proto3" json:"flow_id,omitempty"`
-	NearTtl         uint32                 `protobuf:"varint,3,opt,name=near_ttl,json=nearTtl,proto3" json:"near_ttl,omitempty"`
-	FarTtl          uint32                 `protobuf:"varint,4,opt,name=far_ttl,json=farTtl,proto3" json:"far_ttl,omitempty"`
-	NearReplyAddr   []byte                 `protobuf:"bytes,5,opt,name=near_reply_addr,json=nearReplyAddr,proto3" json:"near_reply_addr,omitempty"`
-	FarReplyAddr    []byte                 `protobuf:"bytes,6,opt,name=far_reply_addr,json=farReplyAddr,proto3" json:"far_reply_addr,omitempty"`
-	DestinationAddr []byte                 `protobuf:"bytes,7,opt,name=destination_addr,json=destinationAddr,proto3" json:"destination_addr,omitempty"`
-	Mpls            *MPLSInfo              `protobuf:"bytes,8,opt,name=mpls,proto3,oneof" json:"mpls,omitempty"`
-	PacketSize      int32                  `protobuf:"varint,9,opt,name=packet_size,json=packetSize,proto3" json:"packet_size,omitempty"`
-	NearRtt         *RTTInfo               `protobuf:"bytes,10,opt,name=near_rtt,json=nearRtt,proto3" json:"near_rtt,omitempty"`
-	FarRtt          *RTTInfo               `protobuf:"bytes,11,opt,name=far_rtt,json=farRtt,proto3" json:"far_rtt,omitempty"`
-	PacketsSent     int32                  `protobuf:"varint,12,opt,name=packets_sent,json=packetsSent,proto3" json:"packets_sent,omitempty"`
-	PacketsReceived int32                  `protobuf:"varint,13,opt,name=packets_received,json=packetsReceived,proto3" json:"packets_received,omitempty"`
-	Mda             *MDAParameters         `protobuf:"bytes,14,opt,name=mda,proto3,oneof" json:"mda,omitempty"`
-	ChangeType      ChangeType             `protobuf:"varint,15,opt,name=change_type,json=changeType,proto3,enum=iprl.ChangeType" json:"change_type,omitempty"`
-	Justification   JustificationType      `protobuf:"varint,16,opt,name=justification,proto3,enum=iprl.JustificationType" json:"justification,omitempty"`
-	VersionTag      MethodVersion          `protobuf:"varint,17,opt,name=version_tag,json=versionTag,proto3,enum=iprl.MethodVersion" json:"version_tag,omitempty"`
-	Timestamp       *timestamppb.Timestamp `protobuf:"bytes,18,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	state                 protoimpl.MessageState `protogen:"open.v1"`
+	VantagePoint          *VantagePoint          `protobuf:"bytes,1,opt,name=vantage_point,json=vantagePoint,proto3" json:"vantage_point,omitempty"`
+	FlowId                uint64                 `protobuf:"varint,2,opt,name=flow_id,json=flowId,proto3" json:"flow_id,omitempty"`
+	NearTtl               uint32                 `protobuf:"varint,3,opt,name=near_ttl,json=nearTtl,proto3" json:"near_ttl,omitempty"`
+	NearReplyAddress      []byte                 `protobuf:"bytes,4,opt,name=near_reply_address,json=nearReplyAddress,proto3" json:"near_reply_address,omitempty"`
+	FarReplyAddress       []byte                 `protobuf:"bytes,5,opt,name=far_reply_address,json=farReplyAddress,proto3" json:"far_reply_address,omitempty"`
+	DestinationAddr       []byte                 `protobuf:"bytes,6,opt,name=destination_addr,json=destinationAddr,proto3" json:"destination_addr,omitempty"`
+	SourceAddr            []byte                 `protobuf:"bytes,7,opt,name=source_addr,json=sourceAddr,proto3" json:"source_addr,omitempty"`
+	Mpls                  *MPLSInfo              `protobuf:"bytes,8,opt,name=mpls,proto3" json:"mpls,omitempty"`
+	PacketSize            int32                  `protobuf:"varint,17,opt,name=packet_size,json=packetSize,proto3" json:"packet_size,omitempty"`
+	NearRtt               *RTTInfo               `protobuf:"bytes,9,opt,name=near_rtt,json=nearRtt,proto3" json:"near_rtt,omitempty"`
+	FarRtt                *RTTInfo               `protobuf:"bytes,10,opt,name=far_rtt,json=farRtt,proto3" json:"far_rtt,omitempty"`
+	PacketsSent           uint32                 `protobuf:"varint,11,opt,name=packets_sent,json=packetsSent,proto3" json:"packets_sent,omitempty"`
+	PacketsReceived       uint32                 `protobuf:"varint,12,opt,name=packets_received,json=packetsReceived,proto3" json:"packets_received,omitempty"`
+	Mda                   *MDAParameters         `protobuf:"bytes,13,opt,name=mda,proto3" json:"mda,omitempty"` // extra
+	ChangeType            ChangeType             `protobuf:"varint,14,opt,name=change_type,json=changeType,proto3,enum=iprl.ChangeType" json:"change_type,omitempty"`
+	JustificationType     JustificationType      `protobuf:"varint,15,opt,name=justification_type,json=justificationType,proto3,enum=iprl.JustificationType" json:"justification_type,omitempty"`
+	ConstructionTimestamp *timestamppb.Timestamp `protobuf:"bytes,16,opt,name=construction_timestamp,json=constructionTimestamp,proto3" json:"construction_timestamp,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
 }
 
 func (x *ForwardingInfoElement) Reset() {
 	*x = ForwardingInfoElement{}
-	mi := &file_iprl_proto_msgTypes[11]
+	mi := &file_iprl_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1140,7 +1457,7 @@ func (x *ForwardingInfoElement) String() string {
 func (*ForwardingInfoElement) ProtoMessage() {}
 
 func (x *ForwardingInfoElement) ProtoReflect() protoreflect.Message {
-	mi := &file_iprl_proto_msgTypes[11]
+	mi := &file_iprl_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1153,7 +1470,7 @@ func (x *ForwardingInfoElement) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ForwardingInfoElement.ProtoReflect.Descriptor instead.
 func (*ForwardingInfoElement) Descriptor() ([]byte, []int) {
-	return file_iprl_proto_rawDescGZIP(), []int{11}
+	return file_iprl_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *ForwardingInfoElement) GetVantagePoint() *VantagePoint {
@@ -1177,23 +1494,16 @@ func (x *ForwardingInfoElement) GetNearTtl() uint32 {
 	return 0
 }
 
-func (x *ForwardingInfoElement) GetFarTtl() uint32 {
+func (x *ForwardingInfoElement) GetNearReplyAddress() []byte {
 	if x != nil {
-		return x.FarTtl
-	}
-	return 0
-}
-
-func (x *ForwardingInfoElement) GetNearReplyAddr() []byte {
-	if x != nil {
-		return x.NearReplyAddr
+		return x.NearReplyAddress
 	}
 	return nil
 }
 
-func (x *ForwardingInfoElement) GetFarReplyAddr() []byte {
+func (x *ForwardingInfoElement) GetFarReplyAddress() []byte {
 	if x != nil {
-		return x.FarReplyAddr
+		return x.FarReplyAddress
 	}
 	return nil
 }
@@ -1201,6 +1511,13 @@ func (x *ForwardingInfoElement) GetFarReplyAddr() []byte {
 func (x *ForwardingInfoElement) GetDestinationAddr() []byte {
 	if x != nil {
 		return x.DestinationAddr
+	}
+	return nil
+}
+
+func (x *ForwardingInfoElement) GetSourceAddr() []byte {
+	if x != nil {
+		return x.SourceAddr
 	}
 	return nil
 }
@@ -1233,14 +1550,14 @@ func (x *ForwardingInfoElement) GetFarRtt() *RTTInfo {
 	return nil
 }
 
-func (x *ForwardingInfoElement) GetPacketsSent() int32 {
+func (x *ForwardingInfoElement) GetPacketsSent() uint32 {
 	if x != nil {
 		return x.PacketsSent
 	}
 	return 0
 }
 
-func (x *ForwardingInfoElement) GetPacketsReceived() int32 {
+func (x *ForwardingInfoElement) GetPacketsReceived() uint32 {
 	if x != nil {
 		return x.PacketsReceived
 	}
@@ -1258,96 +1575,21 @@ func (x *ForwardingInfoElement) GetChangeType() ChangeType {
 	if x != nil {
 		return x.ChangeType
 	}
-	return ChangeType_CHANGE_TYPE_NONE
+	return ChangeType_WITHDRAWN
 }
 
-func (x *ForwardingInfoElement) GetJustification() JustificationType {
+func (x *ForwardingInfoElement) GetJustificationType() JustificationType {
 	if x != nil {
-		return x.Justification
+		return x.JustificationType
 	}
-	return JustificationType_JUSTIFICATION_TYPE_PROBE
+	return JustificationType_INFERRED
 }
 
-func (x *ForwardingInfoElement) GetVersionTag() MethodVersion {
+func (x *ForwardingInfoElement) GetConstructionTimestamp() *timestamppb.Timestamp {
 	if x != nil {
-		return x.VersionTag
-	}
-	return MethodVersion_METHOD_VERSION_V1
-}
-
-func (x *ForwardingInfoElement) GetTimestamp() *timestamppb.Timestamp {
-	if x != nil {
-		return x.Timestamp
+		return x.ConstructionTimestamp
 	}
 	return nil
-}
-
-type ClusterStatus struct {
-	state         protoimpl.MessageState       `protogen:"open.v1"`
-	Agents        []*ProbingAgent              `protobuf:"bytes,1,rep,name=agents,proto3" json:"agents,omitempty"`
-	Generators    []*ProbingDirectiveGenerator `protobuf:"bytes,2,rep,name=generators,proto3" json:"generators,omitempty"`
-	UpdatedAt     *timestamppb.Timestamp       `protobuf:"bytes,3,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
-	Version       uint64                       `protobuf:"varint,4,opt,name=version,proto3" json:"version,omitempty"` // Incrementing version for change detection
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *ClusterStatus) Reset() {
-	*x = ClusterStatus{}
-	mi := &file_iprl_proto_msgTypes[12]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ClusterStatus) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ClusterStatus) ProtoMessage() {}
-
-func (x *ClusterStatus) ProtoReflect() protoreflect.Message {
-	mi := &file_iprl_proto_msgTypes[12]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ClusterStatus.ProtoReflect.Descriptor instead.
-func (*ClusterStatus) Descriptor() ([]byte, []int) {
-	return file_iprl_proto_rawDescGZIP(), []int{12}
-}
-
-func (x *ClusterStatus) GetAgents() []*ProbingAgent {
-	if x != nil {
-		return x.Agents
-	}
-	return nil
-}
-
-func (x *ClusterStatus) GetGenerators() []*ProbingDirectiveGenerator {
-	if x != nil {
-		return x.Generators
-	}
-	return nil
-}
-
-func (x *ClusterStatus) GetUpdatedAt() *timestamppb.Timestamp {
-	if x != nil {
-		return x.UpdatedAt
-	}
-	return nil
-}
-
-func (x *ClusterStatus) GetVersion() uint64 {
-	if x != nil {
-		return x.Version
-	}
-	return 0
 }
 
 var File_iprl_proto protoreflect.FileDescriptor
@@ -1355,72 +1597,105 @@ var File_iprl_proto protoreflect.FileDescriptor
 const file_iprl_proto_rawDesc = "" +
 	"\n" +
 	"\n" +
-	"iprl.proto\x12\x04iprl\x1a\x1bgoogle/protobuf/empty.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1egoogle/protobuf/duration.proto\"\x8b\x01\n" +
-	"\x1cRegisterProbingAgentResponse\x12\x18\n" +
-	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x18\n" +
-	"\amessage\x18\x02 \x01(\tR\amessage\x127\n" +
-	"\rprobing_agent\x18\x03 \x01(\v2\x12.iprl.ProbingAgentR\fprobingAgent\"\xc0\x01\n" +
-	")RegisterProbingDirectiveGeneratorResponse\x12\x18\n" +
-	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x18\n" +
-	"\amessage\x18\x02 \x01(\tR\amessage\x12_\n" +
-	"\x1bprobing_directive_generator\x18\x03 \x01(\v2\x1f.iprl.ProbingDirectiveGeneratorR\x19probingDirectiveGenerator\"'\n" +
-	"\x15UnregistrationRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\"\xb3\x01\n" +
-	"\fVantagePoint\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12\x0e\n" +
-	"\x02ip\x18\x02 \x01(\fR\x02ip\x12\x15\n" +
-	"\x03asn\x18\x03 \x01(\rH\x00R\x03asn\x88\x01\x01\x12\x1f\n" +
-	"\blocation\x18\x04 \x01(\tH\x01R\blocation\x88\x01\x01\x126\n" +
-	"\bprovider\x18\x05 \x01(\x0e2\x1a.iprl.VantagePointProviderR\bproviderB\x06\n" +
-	"\x04_asnB\v\n" +
-	"\t_location\"\xf3\x02\n" +
-	"\fProbingAgent\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12)\n" +
-	"\x10software_version\x18\x02 \x01(\tR\x0fsoftwareVersion\x12\x1b\n" +
-	"\tgrpc_addr\x18\x03 \x01(\tR\bgrpcAddr\x127\n" +
-	"\rvantage_point\x18\x04 \x01(\v2\x12.iprl.VantagePointR\fvantagePoint\x120\n" +
-	"\x06status\x18\x05 \x01(\x0e2\x18.iprl.ProbingAgentStatusR\x06status\x125\n" +
-	"\x17probing_rate_per_second\x18\x06 \x01(\rR\x14probingRatePerSecond\x120\n" +
-	"\x04tags\x18\a \x03(\v2\x1c.iprl.ProbingAgent.TagsEntryR\x04tags\x1a7\n" +
+	"iprl.proto\x12\x04iprl\x1a\x1bgoogle/protobuf/empty.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xdf\x01\n" +
+	"\x18RegisterComponentRequest\x12F\n" +
+	"\x12probing_agent_spec\x18\x01 \x01(\v2\x16.iprl.ProbingAgentSpecH\x00R\x10probingAgentSpec\x12n\n" +
+	" probing_directive_generator_spec\x18\x02 \x01(\v2#.iprl.ProbingDirectiveGeneratorSpecH\x00R\x1dprobingDirectiveGeneratorSpecB\v\n" +
+	"\tcomponent\"\xec\x01\n" +
+	"\x19RegisterComponentResponse\x12L\n" +
+	"\x14probing_agent_status\x18\x01 \x01(\v2\x18.iprl.ProbingAgentStatusH\x00R\x12probingAgentStatus\x12t\n" +
+	"\"probing_directive_generator_status\x18\x02 \x01(\v2%.iprl.ProbingDirectiveGeneratorStatusH\x00R\x1fprobingDirectiveGeneratorStatusB\v\n" +
+	"\tcomponent\"0\n" +
+	"\x1aUnRegisterComponentRequest\x12\x12\n" +
+	"\x04uuid\x18\x01 \x01(\tR\x04uuid\"\xa0\x01\n" +
+	"\fVantagePoint\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12%\n" +
+	"\x0epublic_address\x18\x02 \x01(\fR\rpublicAddress\x12\x15\n" +
+	"\x03asn\x18\x03 \x01(\rH\x00R\x03asn\x88\x01\x01\x126\n" +
+	"\bprovider\x18\x04 \x01(\x0e2\x1a.iprl.VantagePointProviderR\bproviderB\x06\n" +
+	"\x04_asn\"\xd6\x02\n" +
+	"\x10ProbingAgentSpec\x12)\n" +
+	"\x10software_version\x18\x02 \x01(\tR\x0fsoftwareVersion\x12+\n" +
+	"\x11interface_version\x18\x03 \x01(\tR\x10interfaceVersion\x12%\n" +
+	"\x0einterface_addr\x18\x04 \x01(\tR\rinterfaceAddr\x127\n" +
+	"\rvantage_point\x18\x05 \x01(\v2\x12.iprl.VantagePointR\fvantagePoint\x126\n" +
+	"\x17directive_buffer_length\x18\x06 \x01(\rR\x15directiveBufferLength\x121\n" +
+	"\x14orchestrator_address\x18\t \x01(\tR\x13orchestratorAddress\x12\x1f\n" +
+	"\vnum_retries\x18\n" +
+	" \x01(\rR\n" +
+	"numRetries\"\xc3\x01\n" +
+	"\x12ProbingAgentStatus\x12\x12\n" +
+	"\x04uuid\x18\x01 \x01(\tR\x04uuid\x12(\n" +
+	"\x10probing_rate_cap\x18\x02 \x01(\rR\x0eprobingRateCap\x126\n" +
+	"\x04tags\x18\x03 \x03(\v2\".iprl.ProbingAgentStatus.TagsEntryR\x04tags\x1a7\n" +
 	"\tTagsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xc7\x04\n" +
-	"\x19ProbingDirectiveGenerator\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12)\n" +
-	"\x10software_version\x18\x02 \x01(\tR\x0fsoftwareVersion\x12\x1b\n" +
-	"\tgrpc_addr\x18\x03 \x01(\tR\bgrpcAddr\x12*\n" +
-	"\x11vantage_point_ids\x18\x04 \x03(\tR\x0fvantagePointIds\x12,\n" +
-	"\tprotocols\x18\x05 \x03(\x0e2\x0e.iprl.ProtocolR\tprotocols\x12F\n" +
-	" probe_generation_rate_per_second\x18\x06 \x01(\rR\x1cprobeGenerationRatePerSecond\x12\x17\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xac\x03\n" +
+	"\x1dProbingDirectiveGeneratorSpec\x12)\n" +
+	"\x10software_version\x18\x02 \x01(\tR\x0fsoftwareVersion\x12+\n" +
+	"\x11interface_version\x18\x03 \x01(\tR\x10interfaceVersion\x12%\n" +
+	"\x0einterface_addr\x18\x04 \x01(\tR\rinterfaceAddr\x12,\n" +
+	"\tprotocols\x18\x05 \x03(\x0e2\x0e.iprl.ProtocolR\tprotocols\x12\x17\n" +
 	"\amin_ttl\x18\a \x01(\rR\x06minTtl\x12\x17\n" +
-	"\amax_ttl\x18\b \x01(\rR\x06maxTtl\x12=\n" +
-	"\x04tags\x18\t \x03(\v2).iprl.ProbingDirectiveGenerator.TagsEntryR\x04tags\x12I\n" +
-	"\bsettings\x18\n" +
-	" \x03(\v2-.iprl.ProbingDirectiveGenerator.SettingsEntryR\bsettings\x1a7\n" +
+	"\amax_ttl\x18\b \x01(\rR\x06maxTtl\x121\n" +
+	"\x14orchestrator_address\x18\t \x01(\tR\x13orchestratorAddress\x12\x1f\n" +
+	"\vnum_retries\x18\n" +
+	" \x01(\rR\n" +
+	"numRetries\x12D\n" +
+	"\x1fdefault_global_probing_rate_cap\x18\v \x01(\rR\x1bdefaultGlobalProbingRateCap\x12\x12\n" +
+	"\x04seed\x18\f \x01(\x03R\x04seed\"\xc6\x02\n" +
+	"\x1fProbingDirectiveGeneratorStatus\x12\x12\n" +
+	"\x04uuid\x18\x01 \x01(\tR\x04uuid\x12X\n" +
+	"*probe_generation_rate_per_second_per_agent\x18\x06 \x01(\rR$probeGenerationRatePerSecondPerAgent\x127\n" +
+	"\vsgent_specs\x18\a \x03(\v2\x16.iprl.ProbingAgentSpecR\n" +
+	"sgentSpecs\x12C\n" +
+	"\x04tags\x18\t \x03(\v2/.iprl.ProbingDirectiveGeneratorStatus.TagsEntryR\x04tags\x1a7\n" +
 	"\tTagsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1a;\n" +
-	"\rSettingsEntry\x12\x10\n" +
-	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xc0\x01\n" +
-	"\x10ProbingDirective\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12(\n" +
-	"\x10vantage_point_id\x18\x02 \x01(\tR\x0evantagePointId\x12\x19\n" +
-	"\bdst_addr\x18\x03 \x01(\fR\adstAddr\x12*\n" +
-	"\bprotocol\x18\x04 \x01(\x0e2\x0e.iprl.ProtocolR\bprotocol\x12\x10\n" +
-	"\x03ttl\x18\x05 \x01(\rR\x03ttl\x12\x19\n" +
-	"\bdst_port\x18\x06 \x01(\rR\adstPort\"Q\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xeb\x02\n" +
+	"\x17ProbingOrchestratorSpec\x12)\n" +
+	"\x10software_version\x18\x02 \x01(\tR\x0fsoftwareVersion\x12+\n" +
+	"\x11interface_version\x18\x03 \x01(\tR\x10interfaceVersion\x12%\n" +
+	"\x0einterface_addr\x18\x04 \x01(\tR\rinterfaceAddr\x126\n" +
+	"\x17directive_buffer_length\x18\x06 \x01(\rR\x15directiveBufferLength\x122\n" +
+	"\x15element_buffer_length\x18\a \x01(\rR\x13elementBufferLength\x12D\n" +
+	"\x1fdefault_global_probing_rate_cap\x18\b \x01(\rR\x1bdefaultGlobalProbingRateCap\x12\x1f\n" +
+	"\vnum_retries\x18\n" +
+	" \x01(\rR\n" +
+	"numRetries\"R\n" +
+	"\x19ProbingOrchestratorStatus\x125\n" +
+	"\x17global_probing_rate_cap\x18\x02 \x01(\rR\x14globalProbingRateCap\"\xf8\x01\n" +
+	"\x10HeaderParameters\x12$\n" +
+	"\vsource_port\x18\x01 \x01(\rH\x00R\n" +
+	"sourcePort\x88\x01\x01\x12.\n" +
+	"\x10destination_port\x18\x02 \x01(\rH\x01R\x0fdestinationPort\x88\x01\x01\x12+\n" +
+	"\x0ftype_of_service\x18\x03 \x01(\rH\x02R\rtypeOfService\x88\x01\x01\x12\x1c\n" +
+	"\adf_flag\x18\x04 \x01(\bH\x03R\x06dfFlag\x88\x01\x01B\x0e\n" +
+	"\f_source_portB\x13\n" +
+	"\x11_destination_portB\x12\n" +
+	"\x10_type_of_serviceB\n" +
+	"\n" +
+	"\b_df_flag\"\xf3\x02\n" +
+	"\x10ProbingDirective\x12,\n" +
+	"\x12vantage_point_name\x18\x01 \x01(\tR\x10vantagePointName\x12/\n" +
+	"\x13destination_address\x18\x02 \x01(\fR\x12destinationAddress\x12.\n" +
+	"\n" +
+	"ip_version\x18\x03 \x01(\x0e2\x0f.iprl.IPVersionR\tipVersion\x12*\n" +
+	"\bprotocol\x18\x04 \x01(\x0e2\x0e.iprl.ProtocolR\bprotocol\x12H\n" +
+	"\x11header_parameters\x18\x05 \x01(\v2\x16.iprl.HeaderParametersH\x00R\x10headerParameters\x88\x01\x01\x12\x19\n" +
+	"\bnear_ttl\x18\x06 \x01(\rR\anearTtl\x12)\n" +
+	"\x10destination_port\x18\a \x01(\rR\x0fdestinationPortB\x14\n" +
+	"\x12_header_parameters\"Q\n" +
 	"\tMPLSLabel\x12\x14\n" +
 	"\x05label\x18\x01 \x01(\rR\x05label\x12\x0e\n" +
 	"\x02tc\x18\x02 \x01(\rR\x02tc\x12\f\n" +
 	"\x01s\x18\x03 \x01(\bR\x01s\x12\x10\n" +
 	"\x03ttl\x18\x04 \x01(\rR\x03ttl\"3\n" +
 	"\bMPLSInfo\x12'\n" +
-	"\x06labels\x18\x01 \x03(\v2\x0f.iprl.MPLSLabelR\x06labels\"\xb2\x01\n" +
-	"\aRTTInfo\x125\n" +
-	"\bduration\x18\x01 \x01(\v2\x19.google.protobuf.DurationR\bduration\x123\n" +
-	"\asent_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\x06sentAt\x12;\n" +
-	"\vreceived_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"\x06labels\x18\x01 \x03(\v2\x0f.iprl.MPLSLabelR\x06labels\"{\n" +
+	"\aRTTInfo\x123\n" +
+	"\asent_at\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\x06sentAt\x12;\n" +
+	"\vreceived_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
 	"receivedAt\"\x92\x01\n" +
 	"\rMDAParameters\x12\x1d\n" +
 	"\n" +
@@ -1430,82 +1705,61 @@ const file_iprl_proto_rawDesc = "" +
 	"confidence\x12\x1f\n" +
 	"\vmax_retries\x18\x03 \x01(\x05R\n" +
 	"maxRetries\x12!\n" +
-	"\falgo_version\x18\x04 \x01(\tR\valgoVersion\"\x9f\x06\n" +
+	"\falgo_version\x18\x04 \x01(\tR\valgoVersion\"\x84\x06\n" +
 	"\x15ForwardingInfoElement\x127\n" +
 	"\rvantage_point\x18\x01 \x01(\v2\x12.iprl.VantagePointR\fvantagePoint\x12\x17\n" +
 	"\aflow_id\x18\x02 \x01(\x04R\x06flowId\x12\x19\n" +
-	"\bnear_ttl\x18\x03 \x01(\rR\anearTtl\x12\x17\n" +
-	"\afar_ttl\x18\x04 \x01(\rR\x06farTtl\x12&\n" +
-	"\x0fnear_reply_addr\x18\x05 \x01(\fR\rnearReplyAddr\x12$\n" +
-	"\x0efar_reply_addr\x18\x06 \x01(\fR\ffarReplyAddr\x12)\n" +
-	"\x10destination_addr\x18\a \x01(\fR\x0fdestinationAddr\x12'\n" +
-	"\x04mpls\x18\b \x01(\v2\x0e.iprl.MPLSInfoH\x00R\x04mpls\x88\x01\x01\x12\x1f\n" +
-	"\vpacket_size\x18\t \x01(\x05R\n" +
+	"\bnear_ttl\x18\x03 \x01(\rR\anearTtl\x12,\n" +
+	"\x12near_reply_address\x18\x04 \x01(\fR\x10nearReplyAddress\x12*\n" +
+	"\x11far_reply_address\x18\x05 \x01(\fR\x0ffarReplyAddress\x12)\n" +
+	"\x10destination_addr\x18\x06 \x01(\fR\x0fdestinationAddr\x12\x1f\n" +
+	"\vsource_addr\x18\a \x01(\fR\n" +
+	"sourceAddr\x12\"\n" +
+	"\x04mpls\x18\b \x01(\v2\x0e.iprl.MPLSInfoR\x04mpls\x12\x1f\n" +
+	"\vpacket_size\x18\x11 \x01(\x05R\n" +
 	"packetSize\x12(\n" +
-	"\bnear_rtt\x18\n" +
-	" \x01(\v2\r.iprl.RTTInfoR\anearRtt\x12&\n" +
-	"\afar_rtt\x18\v \x01(\v2\r.iprl.RTTInfoR\x06farRtt\x12!\n" +
-	"\fpackets_sent\x18\f \x01(\x05R\vpacketsSent\x12)\n" +
-	"\x10packets_received\x18\r \x01(\x05R\x0fpacketsReceived\x12*\n" +
-	"\x03mda\x18\x0e \x01(\v2\x13.iprl.MDAParametersH\x01R\x03mda\x88\x01\x01\x121\n" +
-	"\vchange_type\x18\x0f \x01(\x0e2\x10.iprl.ChangeTypeR\n" +
-	"changeType\x12=\n" +
-	"\rjustification\x18\x10 \x01(\x0e2\x17.iprl.JustificationTypeR\rjustification\x124\n" +
-	"\vversion_tag\x18\x11 \x01(\x0e2\x13.iprl.MethodVersionR\n" +
-	"versionTag\x128\n" +
-	"\ttimestamp\x18\x12 \x01(\v2\x1a.google.protobuf.TimestampR\ttimestampB\a\n" +
-	"\x05_mplsB\x06\n" +
-	"\x04_mda\"\xd1\x01\n" +
-	"\rClusterStatus\x12*\n" +
-	"\x06agents\x18\x01 \x03(\v2\x12.iprl.ProbingAgentR\x06agents\x12?\n" +
-	"\n" +
-	"generators\x18\x02 \x03(\v2\x1f.iprl.ProbingDirectiveGeneratorR\n" +
-	"generators\x129\n" +
-	"\n" +
-	"updated_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12\x18\n" +
-	"\aversion\x18\x04 \x01(\x04R\aversion*\x7f\n" +
+	"\bnear_rtt\x18\t \x01(\v2\r.iprl.RTTInfoR\anearRtt\x12&\n" +
+	"\afar_rtt\x18\n" +
+	" \x01(\v2\r.iprl.RTTInfoR\x06farRtt\x12!\n" +
+	"\fpackets_sent\x18\v \x01(\rR\vpacketsSent\x12)\n" +
+	"\x10packets_received\x18\f \x01(\rR\x0fpacketsReceived\x12%\n" +
+	"\x03mda\x18\r \x01(\v2\x13.iprl.MDAParametersR\x03mda\x121\n" +
+	"\vchange_type\x18\x0e \x01(\x0e2\x10.iprl.ChangeTypeR\n" +
+	"changeType\x12F\n" +
+	"\x12justification_type\x18\x0f \x01(\x0e2\x17.iprl.JustificationTypeR\x11justificationType\x12Q\n" +
+	"\x16construction_timestamp\x18\x10 \x01(\v2\x1a.google.protobuf.TimestampR\x15constructionTimestamp*\x9e\x01\n" +
+	"\x14VantagePointProvider\x12\"\n" +
+	"\x1eVANTAGE_POINT_PROVIDER_UNKNOWN\x10\x00\x12\x1e\n" +
+	"\x1aVANTAGE_POINT_PROVIDER_GCP\x10\x01\x12\x1e\n" +
+	"\x1aVANTAGE_POINT_PROVIDER_AWS\x10\x02\x12\"\n" +
+	"\x1eVANTAGE_POINT_PROVIDER_EDGENET\x10\x03*\x7f\n" +
 	"\bProtocol\x12\x14\n" +
 	"\x10PROTOCOL_UNKNOWN\x10\x00\x12\x11\n" +
 	"\rPROTOCOL_ICMP\x10\x01\x12\x10\n" +
 	"\fPROTOCOL_TCP\x10\x06\x12\x10\n" +
 	"\fPROTOCOL_UDP\x10\x11\x12\x11\n" +
 	"\rPROTOCOL_DCCP\x10!\x12\x13\n" +
-	"\x0fPROTOCOL_ICMPV6\x10:*W\n" +
-	"\x12ProbingAgentStatus\x12\x1f\n" +
-	"\x1bPROBING_AGENT_STATUS_ONLINE\x10\x00\x12 \n" +
-	"\x1cPROBING_AGENT_STATUS_OFFLINE\x10\x01*\x9e\x01\n" +
-	"\x14VantagePointProvider\x12\"\n" +
-	"\x1eVANTAGE_POINT_PROVIDER_UNKNOWN\x10\x00\x12\x1e\n" +
-	"\x1aVANTAGE_POINT_PROVIDER_GCP\x10\x01\x12\x1e\n" +
-	"\x1aVANTAGE_POINT_PROVIDER_AWS\x10\x02\x12\"\n" +
-	"\x1eVANTAGE_POINT_PROVIDER_EDGENET\x10\x03*l\n" +
+	"\x0fPROTOCOL_ICMPV6\x10:*/\n" +
+	"\tIPVersion\x12\x10\n" +
+	"\fIP_VERSION_4\x10\x00\x12\x10\n" +
+	"\fIP_VERSION_6\x10\x01**\n" +
 	"\n" +
-	"ChangeType\x12\x14\n" +
-	"\x10CHANGE_TYPE_NONE\x10\x00\x12\x15\n" +
-	"\x11CHANGE_TYPE_ADDED\x10\x01\x12\x17\n" +
-	"\x13CHANGE_TYPE_REMOVED\x10\x02\x12\x18\n" +
-	"\x14CHANGE_TYPE_MODIFIED\x10\x03*s\n" +
-	"\x11JustificationType\x12\x1c\n" +
-	"\x18JUSTIFICATION_TYPE_PROBE\x10\x00\x12 \n" +
-	"\x1cJUSTIFICATION_TYPE_INFERENCE\x10\x01\x12\x1e\n" +
-	"\x1aJUSTIFICATION_TYPE_TIMEOUT\x10\x02*=\n" +
-	"\rMethodVersion\x12\x15\n" +
-	"\x11METHOD_VERSION_V1\x10\x00\x12\x15\n" +
-	"\x11METHOD_VERSION_V2\x10\x012\x84\x01\n" +
-	"\tPAService\x12@\n" +
-	"\x05Probe\x12\x16.iprl.ProbingDirective\x1a\x1b.iprl.ForwardingInfoElement(\x010\x01\x125\n" +
-	"\x06Notify\x12\x13.iprl.ClusterStatus\x1a\x16.google.protobuf.Empty2C\n" +
-	"\n" +
-	"PDGService\x125\n" +
-	"\x06Notify\x12\x13.iprl.ClusterStatus\x1a\x16.google.protobuf.Empty2\xdb\x04\n" +
-	"\tPOService\x12N\n" +
-	"\x14RegisterProbingAgent\x12\x12.iprl.ProbingAgent\x1a\".iprl.RegisterProbingAgentResponse\x12M\n" +
-	"\x16UnregisterProbingAgent\x12\x1b.iprl.UnregistrationRequest\x1a\x16.google.protobuf.Empty\x12u\n" +
-	"!RegisterProbingDirectiveGenerator\x12\x1f.iprl.ProbingDirectiveGenerator\x1a/.iprl.RegisterProbingDirectiveGeneratorResponse\x12Z\n" +
-	"#UnregisterProbingDirectiveGenerator\x12\x1b.iprl.UnregistrationRequest\x1a\x16.google.protobuf.Empty\x12?\n" +
-	"\x10GetClusterStatus\x12\x16.google.protobuf.Empty\x1a\x13.iprl.ClusterStatus\x12D\n" +
-	"\x10EnqueueDirective\x12\x16.iprl.ProbingDirective\x1a\x16.google.protobuf.Empty(\x01\x12U\n" +
-	"\x1cEnqueueForwardingInfoElement\x12\x1b.iprl.ForwardingInfoElement\x1a\x16.google.protobuf.Empty(\x01B\x1eZ\x1ciprl-demo/internal/gen/protob\x06proto3"
+	"ChangeType\x12\r\n" +
+	"\tWITHDRAWN\x10\x00\x12\r\n" +
+	"\tANNOUNCED\x10\x01*/\n" +
+	"\x11JustificationType\x12\f\n" +
+	"\bINFERRED\x10\x00\x12\f\n" +
+	"\bOBSERVED\x10\x012S\n" +
+	"\x15ProbingAgentInterface\x12:\n" +
+	"\x06Update\x12\x18.iprl.ProbingAgentStatus\x1a\x16.google.protobuf.Empty2m\n" +
+	"\"ProbingDirectiveGeneratorInterface\x12G\n" +
+	"\x06Update\x12%.iprl.ProbingDirectiveGeneratorStatus\x1a\x16.google.protobuf.Empty2\xbc\x03\n" +
+	"\x1cProbingOrchestratorInterface\x12T\n" +
+	"\x11RegisterComponent\x12\x1e.iprl.RegisterComponentRequest\x1a\x1f.iprl.RegisterComponentResponse\x12O\n" +
+	"\x13UnRegisterComponent\x12 .iprl.UnRegisterComponentRequest\x1a\x16.google.protobuf.Empty\x12I\n" +
+	"\x15PushProbingDirectives\x12\x16.iprl.ProbingDirective\x1a\x16.google.protobuf.Empty(\x01\x12U\n" +
+	"\x1aPushForwardingInfoElements\x12\x1b.iprl.ForwardingInfoElement\x1a\x16.iprl.ProbingDirective(\x010\x01\x12S\n" +
+	"\x1aPullForwardingInfoElements\x12\x16.google.protobuf.Empty\x1a\x1b.iprl.ForwardingInfoElement0\x01B\x1eZ\x1ciprl-demo/internal/gen/protob\x06proto3"
 
 var (
 	file_iprl_proto_rawDescOnce sync.Once
@@ -1519,87 +1773,80 @@ func file_iprl_proto_rawDescGZIP() []byte {
 	return file_iprl_proto_rawDescData
 }
 
-var file_iprl_proto_enumTypes = make([]protoimpl.EnumInfo, 6)
-var file_iprl_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
+var file_iprl_proto_enumTypes = make([]protoimpl.EnumInfo, 5)
+var file_iprl_proto_msgTypes = make([]protoimpl.MessageInfo, 19)
 var file_iprl_proto_goTypes = []any{
-	(Protocol)(0),                                     // 0: iprl.Protocol
-	(ProbingAgentStatus)(0),                           // 1: iprl.ProbingAgentStatus
-	(VantagePointProvider)(0),                         // 2: iprl.VantagePointProvider
-	(ChangeType)(0),                                   // 3: iprl.ChangeType
-	(JustificationType)(0),                            // 4: iprl.JustificationType
-	(MethodVersion)(0),                                // 5: iprl.MethodVersion
-	(*RegisterProbingAgentResponse)(nil),              // 6: iprl.RegisterProbingAgentResponse
-	(*RegisterProbingDirectiveGeneratorResponse)(nil), // 7: iprl.RegisterProbingDirectiveGeneratorResponse
-	(*UnregistrationRequest)(nil),                     // 8: iprl.UnregistrationRequest
-	(*VantagePoint)(nil),                              // 9: iprl.VantagePoint
-	(*ProbingAgent)(nil),                              // 10: iprl.ProbingAgent
-	(*ProbingDirectiveGenerator)(nil),                 // 11: iprl.ProbingDirectiveGenerator
-	(*ProbingDirective)(nil),                          // 12: iprl.ProbingDirective
-	(*MPLSLabel)(nil),                                 // 13: iprl.MPLSLabel
-	(*MPLSInfo)(nil),                                  // 14: iprl.MPLSInfo
-	(*RTTInfo)(nil),                                   // 15: iprl.RTTInfo
-	(*MDAParameters)(nil),                             // 16: iprl.MDAParameters
-	(*ForwardingInfoElement)(nil),                     // 17: iprl.ForwardingInfoElement
-	(*ClusterStatus)(nil),                             // 18: iprl.ClusterStatus
-	nil,                                               // 19: iprl.ProbingAgent.TagsEntry
-	nil,                                               // 20: iprl.ProbingDirectiveGenerator.TagsEntry
-	nil,                                               // 21: iprl.ProbingDirectiveGenerator.SettingsEntry
-	(*durationpb.Duration)(nil),                       // 22: google.protobuf.Duration
-	(*timestamppb.Timestamp)(nil),                     // 23: google.protobuf.Timestamp
-	(*emptypb.Empty)(nil),                             // 24: google.protobuf.Empty
+	(VantagePointProvider)(0),               // 0: iprl.VantagePointProvider
+	(Protocol)(0),                           // 1: iprl.Protocol
+	(IPVersion)(0),                          // 2: iprl.IPVersion
+	(ChangeType)(0),                         // 3: iprl.ChangeType
+	(JustificationType)(0),                  // 4: iprl.JustificationType
+	(*RegisterComponentRequest)(nil),        // 5: iprl.RegisterComponentRequest
+	(*RegisterComponentResponse)(nil),       // 6: iprl.RegisterComponentResponse
+	(*UnRegisterComponentRequest)(nil),      // 7: iprl.UnRegisterComponentRequest
+	(*VantagePoint)(nil),                    // 8: iprl.VantagePoint
+	(*ProbingAgentSpec)(nil),                // 9: iprl.ProbingAgentSpec
+	(*ProbingAgentStatus)(nil),              // 10: iprl.ProbingAgentStatus
+	(*ProbingDirectiveGeneratorSpec)(nil),   // 11: iprl.ProbingDirectiveGeneratorSpec
+	(*ProbingDirectiveGeneratorStatus)(nil), // 12: iprl.ProbingDirectiveGeneratorStatus
+	(*ProbingOrchestratorSpec)(nil),         // 13: iprl.ProbingOrchestratorSpec
+	(*ProbingOrchestratorStatus)(nil),       // 14: iprl.ProbingOrchestratorStatus
+	(*HeaderParameters)(nil),                // 15: iprl.HeaderParameters
+	(*ProbingDirective)(nil),                // 16: iprl.ProbingDirective
+	(*MPLSLabel)(nil),                       // 17: iprl.MPLSLabel
+	(*MPLSInfo)(nil),                        // 18: iprl.MPLSInfo
+	(*RTTInfo)(nil),                         // 19: iprl.RTTInfo
+	(*MDAParameters)(nil),                   // 20: iprl.MDAParameters
+	(*ForwardingInfoElement)(nil),           // 21: iprl.ForwardingInfoElement
+	nil,                                     // 22: iprl.ProbingAgentStatus.TagsEntry
+	nil,                                     // 23: iprl.ProbingDirectiveGeneratorStatus.TagsEntry
+	(*timestamppb.Timestamp)(nil),           // 24: google.protobuf.Timestamp
+	(*emptypb.Empty)(nil),                   // 25: google.protobuf.Empty
 }
 var file_iprl_proto_depIdxs = []int32{
-	10, // 0: iprl.RegisterProbingAgentResponse.probing_agent:type_name -> iprl.ProbingAgent
-	11, // 1: iprl.RegisterProbingDirectiveGeneratorResponse.probing_directive_generator:type_name -> iprl.ProbingDirectiveGenerator
-	2,  // 2: iprl.VantagePoint.provider:type_name -> iprl.VantagePointProvider
-	9,  // 3: iprl.ProbingAgent.vantage_point:type_name -> iprl.VantagePoint
-	1,  // 4: iprl.ProbingAgent.status:type_name -> iprl.ProbingAgentStatus
-	19, // 5: iprl.ProbingAgent.tags:type_name -> iprl.ProbingAgent.TagsEntry
-	0,  // 6: iprl.ProbingDirectiveGenerator.protocols:type_name -> iprl.Protocol
-	20, // 7: iprl.ProbingDirectiveGenerator.tags:type_name -> iprl.ProbingDirectiveGenerator.TagsEntry
-	21, // 8: iprl.ProbingDirectiveGenerator.settings:type_name -> iprl.ProbingDirectiveGenerator.SettingsEntry
-	0,  // 9: iprl.ProbingDirective.protocol:type_name -> iprl.Protocol
-	13, // 10: iprl.MPLSInfo.labels:type_name -> iprl.MPLSLabel
-	22, // 11: iprl.RTTInfo.duration:type_name -> google.protobuf.Duration
-	23, // 12: iprl.RTTInfo.sent_at:type_name -> google.protobuf.Timestamp
-	23, // 13: iprl.RTTInfo.received_at:type_name -> google.protobuf.Timestamp
-	9,  // 14: iprl.ForwardingInfoElement.vantage_point:type_name -> iprl.VantagePoint
-	14, // 15: iprl.ForwardingInfoElement.mpls:type_name -> iprl.MPLSInfo
-	15, // 16: iprl.ForwardingInfoElement.near_rtt:type_name -> iprl.RTTInfo
-	15, // 17: iprl.ForwardingInfoElement.far_rtt:type_name -> iprl.RTTInfo
-	16, // 18: iprl.ForwardingInfoElement.mda:type_name -> iprl.MDAParameters
-	3,  // 19: iprl.ForwardingInfoElement.change_type:type_name -> iprl.ChangeType
-	4,  // 20: iprl.ForwardingInfoElement.justification:type_name -> iprl.JustificationType
-	5,  // 21: iprl.ForwardingInfoElement.version_tag:type_name -> iprl.MethodVersion
-	23, // 22: iprl.ForwardingInfoElement.timestamp:type_name -> google.protobuf.Timestamp
-	10, // 23: iprl.ClusterStatus.agents:type_name -> iprl.ProbingAgent
-	11, // 24: iprl.ClusterStatus.generators:type_name -> iprl.ProbingDirectiveGenerator
-	23, // 25: iprl.ClusterStatus.updated_at:type_name -> google.protobuf.Timestamp
-	12, // 26: iprl.PAService.Probe:input_type -> iprl.ProbingDirective
-	18, // 27: iprl.PAService.Notify:input_type -> iprl.ClusterStatus
-	18, // 28: iprl.PDGService.Notify:input_type -> iprl.ClusterStatus
-	10, // 29: iprl.POService.RegisterProbingAgent:input_type -> iprl.ProbingAgent
-	8,  // 30: iprl.POService.UnregisterProbingAgent:input_type -> iprl.UnregistrationRequest
-	11, // 31: iprl.POService.RegisterProbingDirectiveGenerator:input_type -> iprl.ProbingDirectiveGenerator
-	8,  // 32: iprl.POService.UnregisterProbingDirectiveGenerator:input_type -> iprl.UnregistrationRequest
-	24, // 33: iprl.POService.GetClusterStatus:input_type -> google.protobuf.Empty
-	12, // 34: iprl.POService.EnqueueDirective:input_type -> iprl.ProbingDirective
-	17, // 35: iprl.POService.EnqueueForwardingInfoElement:input_type -> iprl.ForwardingInfoElement
-	17, // 36: iprl.PAService.Probe:output_type -> iprl.ForwardingInfoElement
-	24, // 37: iprl.PAService.Notify:output_type -> google.protobuf.Empty
-	24, // 38: iprl.PDGService.Notify:output_type -> google.protobuf.Empty
-	6,  // 39: iprl.POService.RegisterProbingAgent:output_type -> iprl.RegisterProbingAgentResponse
-	24, // 40: iprl.POService.UnregisterProbingAgent:output_type -> google.protobuf.Empty
-	7,  // 41: iprl.POService.RegisterProbingDirectiveGenerator:output_type -> iprl.RegisterProbingDirectiveGeneratorResponse
-	24, // 42: iprl.POService.UnregisterProbingDirectiveGenerator:output_type -> google.protobuf.Empty
-	18, // 43: iprl.POService.GetClusterStatus:output_type -> iprl.ClusterStatus
-	24, // 44: iprl.POService.EnqueueDirective:output_type -> google.protobuf.Empty
-	24, // 45: iprl.POService.EnqueueForwardingInfoElement:output_type -> google.protobuf.Empty
-	36, // [36:46] is the sub-list for method output_type
-	26, // [26:36] is the sub-list for method input_type
-	26, // [26:26] is the sub-list for extension type_name
-	26, // [26:26] is the sub-list for extension extendee
-	0,  // [0:26] is the sub-list for field type_name
+	9,  // 0: iprl.RegisterComponentRequest.probing_agent_spec:type_name -> iprl.ProbingAgentSpec
+	11, // 1: iprl.RegisterComponentRequest.probing_directive_generator_spec:type_name -> iprl.ProbingDirectiveGeneratorSpec
+	10, // 2: iprl.RegisterComponentResponse.probing_agent_status:type_name -> iprl.ProbingAgentStatus
+	12, // 3: iprl.RegisterComponentResponse.probing_directive_generator_status:type_name -> iprl.ProbingDirectiveGeneratorStatus
+	0,  // 4: iprl.VantagePoint.provider:type_name -> iprl.VantagePointProvider
+	8,  // 5: iprl.ProbingAgentSpec.vantage_point:type_name -> iprl.VantagePoint
+	22, // 6: iprl.ProbingAgentStatus.tags:type_name -> iprl.ProbingAgentStatus.TagsEntry
+	1,  // 7: iprl.ProbingDirectiveGeneratorSpec.protocols:type_name -> iprl.Protocol
+	9,  // 8: iprl.ProbingDirectiveGeneratorStatus.sgent_specs:type_name -> iprl.ProbingAgentSpec
+	23, // 9: iprl.ProbingDirectiveGeneratorStatus.tags:type_name -> iprl.ProbingDirectiveGeneratorStatus.TagsEntry
+	2,  // 10: iprl.ProbingDirective.ip_version:type_name -> iprl.IPVersion
+	1,  // 11: iprl.ProbingDirective.protocol:type_name -> iprl.Protocol
+	15, // 12: iprl.ProbingDirective.header_parameters:type_name -> iprl.HeaderParameters
+	17, // 13: iprl.MPLSInfo.labels:type_name -> iprl.MPLSLabel
+	24, // 14: iprl.RTTInfo.sent_at:type_name -> google.protobuf.Timestamp
+	24, // 15: iprl.RTTInfo.received_at:type_name -> google.protobuf.Timestamp
+	8,  // 16: iprl.ForwardingInfoElement.vantage_point:type_name -> iprl.VantagePoint
+	18, // 17: iprl.ForwardingInfoElement.mpls:type_name -> iprl.MPLSInfo
+	19, // 18: iprl.ForwardingInfoElement.near_rtt:type_name -> iprl.RTTInfo
+	19, // 19: iprl.ForwardingInfoElement.far_rtt:type_name -> iprl.RTTInfo
+	20, // 20: iprl.ForwardingInfoElement.mda:type_name -> iprl.MDAParameters
+	3,  // 21: iprl.ForwardingInfoElement.change_type:type_name -> iprl.ChangeType
+	4,  // 22: iprl.ForwardingInfoElement.justification_type:type_name -> iprl.JustificationType
+	24, // 23: iprl.ForwardingInfoElement.construction_timestamp:type_name -> google.protobuf.Timestamp
+	10, // 24: iprl.ProbingAgentInterface.Update:input_type -> iprl.ProbingAgentStatus
+	12, // 25: iprl.ProbingDirectiveGeneratorInterface.Update:input_type -> iprl.ProbingDirectiveGeneratorStatus
+	5,  // 26: iprl.ProbingOrchestratorInterface.RegisterComponent:input_type -> iprl.RegisterComponentRequest
+	7,  // 27: iprl.ProbingOrchestratorInterface.UnRegisterComponent:input_type -> iprl.UnRegisterComponentRequest
+	16, // 28: iprl.ProbingOrchestratorInterface.PushProbingDirectives:input_type -> iprl.ProbingDirective
+	21, // 29: iprl.ProbingOrchestratorInterface.PushForwardingInfoElements:input_type -> iprl.ForwardingInfoElement
+	25, // 30: iprl.ProbingOrchestratorInterface.PullForwardingInfoElements:input_type -> google.protobuf.Empty
+	25, // 31: iprl.ProbingAgentInterface.Update:output_type -> google.protobuf.Empty
+	25, // 32: iprl.ProbingDirectiveGeneratorInterface.Update:output_type -> google.protobuf.Empty
+	6,  // 33: iprl.ProbingOrchestratorInterface.RegisterComponent:output_type -> iprl.RegisterComponentResponse
+	25, // 34: iprl.ProbingOrchestratorInterface.UnRegisterComponent:output_type -> google.protobuf.Empty
+	25, // 35: iprl.ProbingOrchestratorInterface.PushProbingDirectives:output_type -> google.protobuf.Empty
+	16, // 36: iprl.ProbingOrchestratorInterface.PushForwardingInfoElements:output_type -> iprl.ProbingDirective
+	21, // 37: iprl.ProbingOrchestratorInterface.PullForwardingInfoElements:output_type -> iprl.ForwardingInfoElement
+	31, // [31:38] is the sub-list for method output_type
+	24, // [24:31] is the sub-list for method input_type
+	24, // [24:24] is the sub-list for extension type_name
+	24, // [24:24] is the sub-list for extension extendee
+	0,  // [0:24] is the sub-list for field type_name
 }
 
 func init() { file_iprl_proto_init() }
@@ -1607,15 +1854,24 @@ func file_iprl_proto_init() {
 	if File_iprl_proto != nil {
 		return
 	}
+	file_iprl_proto_msgTypes[0].OneofWrappers = []any{
+		(*RegisterComponentRequest_ProbingAgentSpec)(nil),
+		(*RegisterComponentRequest_ProbingDirectiveGeneratorSpec)(nil),
+	}
+	file_iprl_proto_msgTypes[1].OneofWrappers = []any{
+		(*RegisterComponentResponse_ProbingAgentStatus)(nil),
+		(*RegisterComponentResponse_ProbingDirectiveGeneratorStatus)(nil),
+	}
 	file_iprl_proto_msgTypes[3].OneofWrappers = []any{}
+	file_iprl_proto_msgTypes[10].OneofWrappers = []any{}
 	file_iprl_proto_msgTypes[11].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_iprl_proto_rawDesc), len(file_iprl_proto_rawDesc)),
-			NumEnums:      6,
-			NumMessages:   16,
+			NumEnums:      5,
+			NumMessages:   19,
 			NumExtensions: 0,
 			NumServices:   3,
 		},

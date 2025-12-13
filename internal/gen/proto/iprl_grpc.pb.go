@@ -22,242 +22,105 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	PAService_Probe_FullMethodName  = "/iprl.PAService/Probe"
-	PAService_Notify_FullMethodName = "/iprl.PAService/Notify"
+	ProbingAgentInterface_Update_FullMethodName = "/iprl.ProbingAgentInterface/Update"
 )
 
-// PAServiceClient is the client API for PAService service.
+// ProbingAgentInterfaceClient is the client API for ProbingAgentInterface service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
-type PAServiceClient interface {
-	// Probing Orchestrator calls this to send directives, PA streams back results
-	Probe(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[ProbingDirective, ForwardingInfoElement], error)
-	// Probing Orchestrator calls this to notify of cluster changes
-	Notify(ctx context.Context, in *ClusterStatus, opts ...grpc.CallOption) (*emptypb.Empty, error)
+//
+// === Probing Agent ===
+type ProbingAgentInterfaceClient interface {
+	Update(ctx context.Context, in *ProbingAgentStatus, opts ...grpc.CallOption) (*emptypb.Empty, error)
 }
 
-type pAServiceClient struct {
+type probingAgentInterfaceClient struct {
 	cc grpc.ClientConnInterface
 }
 
-func NewPAServiceClient(cc grpc.ClientConnInterface) PAServiceClient {
-	return &pAServiceClient{cc}
+func NewProbingAgentInterfaceClient(cc grpc.ClientConnInterface) ProbingAgentInterfaceClient {
+	return &probingAgentInterfaceClient{cc}
 }
 
-func (c *pAServiceClient) Probe(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[ProbingDirective, ForwardingInfoElement], error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	stream, err := c.cc.NewStream(ctx, &PAService_ServiceDesc.Streams[0], PAService_Probe_FullMethodName, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	x := &grpc.GenericClientStream[ProbingDirective, ForwardingInfoElement]{ClientStream: stream}
-	return x, nil
-}
-
-// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
-type PAService_ProbeClient = grpc.BidiStreamingClient[ProbingDirective, ForwardingInfoElement]
-
-func (c *pAServiceClient) Notify(ctx context.Context, in *ClusterStatus, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+func (c *probingAgentInterfaceClient) Update(ctx context.Context, in *ProbingAgentStatus, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(emptypb.Empty)
-	err := c.cc.Invoke(ctx, PAService_Notify_FullMethodName, in, out, cOpts...)
+	err := c.cc.Invoke(ctx, ProbingAgentInterface_Update_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-// PAServiceServer is the server API for PAService service.
-// All implementations must embed UnimplementedPAServiceServer
+// ProbingAgentInterfaceServer is the server API for ProbingAgentInterface service.
+// All implementations must embed UnimplementedProbingAgentInterfaceServer
 // for forward compatibility.
-type PAServiceServer interface {
-	// Probing Orchestrator calls this to send directives, PA streams back results
-	Probe(grpc.BidiStreamingServer[ProbingDirective, ForwardingInfoElement]) error
-	// Probing Orchestrator calls this to notify of cluster changes
-	Notify(context.Context, *ClusterStatus) (*emptypb.Empty, error)
-	mustEmbedUnimplementedPAServiceServer()
+//
+// === Probing Agent ===
+type ProbingAgentInterfaceServer interface {
+	Update(context.Context, *ProbingAgentStatus) (*emptypb.Empty, error)
+	mustEmbedUnimplementedProbingAgentInterfaceServer()
 }
 
-// UnimplementedPAServiceServer must be embedded to have
+// UnimplementedProbingAgentInterfaceServer must be embedded to have
 // forward compatible implementations.
 //
 // NOTE: this should be embedded by value instead of pointer to avoid a nil
 // pointer dereference when methods are called.
-type UnimplementedPAServiceServer struct{}
+type UnimplementedProbingAgentInterfaceServer struct{}
 
-func (UnimplementedPAServiceServer) Probe(grpc.BidiStreamingServer[ProbingDirective, ForwardingInfoElement]) error {
-	return status.Error(codes.Unimplemented, "method Probe not implemented")
+func (UnimplementedProbingAgentInterfaceServer) Update(context.Context, *ProbingAgentStatus) (*emptypb.Empty, error) {
+	return nil, status.Error(codes.Unimplemented, "method Update not implemented")
 }
-func (UnimplementedPAServiceServer) Notify(context.Context, *ClusterStatus) (*emptypb.Empty, error) {
-	return nil, status.Error(codes.Unimplemented, "method Notify not implemented")
-}
-func (UnimplementedPAServiceServer) mustEmbedUnimplementedPAServiceServer() {}
-func (UnimplementedPAServiceServer) testEmbeddedByValue()                   {}
+func (UnimplementedProbingAgentInterfaceServer) mustEmbedUnimplementedProbingAgentInterfaceServer() {}
+func (UnimplementedProbingAgentInterfaceServer) testEmbeddedByValue()                               {}
 
-// UnsafePAServiceServer may be embedded to opt out of forward compatibility for this service.
-// Use of this interface is not recommended, as added methods to PAServiceServer will
+// UnsafeProbingAgentInterfaceServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to ProbingAgentInterfaceServer will
 // result in compilation errors.
-type UnsafePAServiceServer interface {
-	mustEmbedUnimplementedPAServiceServer()
+type UnsafeProbingAgentInterfaceServer interface {
+	mustEmbedUnimplementedProbingAgentInterfaceServer()
 }
 
-func RegisterPAServiceServer(s grpc.ServiceRegistrar, srv PAServiceServer) {
-	// If the following call panics, it indicates UnimplementedPAServiceServer was
+func RegisterProbingAgentInterfaceServer(s grpc.ServiceRegistrar, srv ProbingAgentInterfaceServer) {
+	// If the following call panics, it indicates UnimplementedProbingAgentInterfaceServer was
 	// embedded by pointer and is nil.  This will cause panics if an
 	// unimplemented method is ever invoked, so we test this at initialization
 	// time to prevent it from happening at runtime later due to I/O.
 	if t, ok := srv.(interface{ testEmbeddedByValue() }); ok {
 		t.testEmbeddedByValue()
 	}
-	s.RegisterService(&PAService_ServiceDesc, srv)
+	s.RegisterService(&ProbingAgentInterface_ServiceDesc, srv)
 }
 
-func _PAService_Probe_Handler(srv interface{}, stream grpc.ServerStream) error {
-	return srv.(PAServiceServer).Probe(&grpc.GenericServerStream[ProbingDirective, ForwardingInfoElement]{ServerStream: stream})
-}
-
-// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
-type PAService_ProbeServer = grpc.BidiStreamingServer[ProbingDirective, ForwardingInfoElement]
-
-func _PAService_Notify_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ClusterStatus)
+func _ProbingAgentInterface_Update_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ProbingAgentStatus)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(PAServiceServer).Notify(ctx, in)
+		return srv.(ProbingAgentInterfaceServer).Update(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: PAService_Notify_FullMethodName,
+		FullMethod: ProbingAgentInterface_Update_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(PAServiceServer).Notify(ctx, req.(*ClusterStatus))
+		return srv.(ProbingAgentInterfaceServer).Update(ctx, req.(*ProbingAgentStatus))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-// PAService_ServiceDesc is the grpc.ServiceDesc for PAService service.
+// ProbingAgentInterface_ServiceDesc is the grpc.ServiceDesc for ProbingAgentInterface service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
-var PAService_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "iprl.PAService",
-	HandlerType: (*PAServiceServer)(nil),
+var ProbingAgentInterface_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "iprl.ProbingAgentInterface",
+	HandlerType: (*ProbingAgentInterfaceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "Notify",
-			Handler:    _PAService_Notify_Handler,
-		},
-	},
-	Streams: []grpc.StreamDesc{
-		{
-			StreamName:    "Probe",
-			Handler:       _PAService_Probe_Handler,
-			ServerStreams: true,
-			ClientStreams: true,
-		},
-	},
-	Metadata: "iprl.proto",
-}
-
-const (
-	PDGService_Notify_FullMethodName = "/iprl.PDGService/Notify"
-)
-
-// PDGServiceClient is the client API for PDGService service.
-//
-// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
-type PDGServiceClient interface {
-	// Probing Orchestrator calls this to notify of cluster changes
-	Notify(ctx context.Context, in *ClusterStatus, opts ...grpc.CallOption) (*emptypb.Empty, error)
-}
-
-type pDGServiceClient struct {
-	cc grpc.ClientConnInterface
-}
-
-func NewPDGServiceClient(cc grpc.ClientConnInterface) PDGServiceClient {
-	return &pDGServiceClient{cc}
-}
-
-func (c *pDGServiceClient) Notify(ctx context.Context, in *ClusterStatus, opts ...grpc.CallOption) (*emptypb.Empty, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(emptypb.Empty)
-	err := c.cc.Invoke(ctx, PDGService_Notify_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-// PDGServiceServer is the server API for PDGService service.
-// All implementations must embed UnimplementedPDGServiceServer
-// for forward compatibility.
-type PDGServiceServer interface {
-	// Probing Orchestrator calls this to notify of cluster changes
-	Notify(context.Context, *ClusterStatus) (*emptypb.Empty, error)
-	mustEmbedUnimplementedPDGServiceServer()
-}
-
-// UnimplementedPDGServiceServer must be embedded to have
-// forward compatible implementations.
-//
-// NOTE: this should be embedded by value instead of pointer to avoid a nil
-// pointer dereference when methods are called.
-type UnimplementedPDGServiceServer struct{}
-
-func (UnimplementedPDGServiceServer) Notify(context.Context, *ClusterStatus) (*emptypb.Empty, error) {
-	return nil, status.Error(codes.Unimplemented, "method Notify not implemented")
-}
-func (UnimplementedPDGServiceServer) mustEmbedUnimplementedPDGServiceServer() {}
-func (UnimplementedPDGServiceServer) testEmbeddedByValue()                    {}
-
-// UnsafePDGServiceServer may be embedded to opt out of forward compatibility for this service.
-// Use of this interface is not recommended, as added methods to PDGServiceServer will
-// result in compilation errors.
-type UnsafePDGServiceServer interface {
-	mustEmbedUnimplementedPDGServiceServer()
-}
-
-func RegisterPDGServiceServer(s grpc.ServiceRegistrar, srv PDGServiceServer) {
-	// If the following call panics, it indicates UnimplementedPDGServiceServer was
-	// embedded by pointer and is nil.  This will cause panics if an
-	// unimplemented method is ever invoked, so we test this at initialization
-	// time to prevent it from happening at runtime later due to I/O.
-	if t, ok := srv.(interface{ testEmbeddedByValue() }); ok {
-		t.testEmbeddedByValue()
-	}
-	s.RegisterService(&PDGService_ServiceDesc, srv)
-}
-
-func _PDGService_Notify_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ClusterStatus)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(PDGServiceServer).Notify(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: PDGService_Notify_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(PDGServiceServer).Notify(ctx, req.(*ClusterStatus))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-// PDGService_ServiceDesc is the grpc.ServiceDesc for PDGService service.
-// It's only intended for direct use with grpc.RegisterService,
-// and not to be introspected or modified (even as a copy)
-var PDGService_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "iprl.PDGService",
-	HandlerType: (*PDGServiceServer)(nil),
-	Methods: []grpc.MethodDesc{
-		{
-			MethodName: "Notify",
-			Handler:    _PDGService_Notify_Handler,
+			MethodName: "Update",
+			Handler:    _ProbingAgentInterface_Update_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
@@ -265,96 +128,168 @@ var PDGService_ServiceDesc = grpc.ServiceDesc{
 }
 
 const (
-	POService_RegisterProbingAgent_FullMethodName                = "/iprl.POService/RegisterProbingAgent"
-	POService_UnregisterProbingAgent_FullMethodName              = "/iprl.POService/UnregisterProbingAgent"
-	POService_RegisterProbingDirectiveGenerator_FullMethodName   = "/iprl.POService/RegisterProbingDirectiveGenerator"
-	POService_UnregisterProbingDirectiveGenerator_FullMethodName = "/iprl.POService/UnregisterProbingDirectiveGenerator"
-	POService_GetClusterStatus_FullMethodName                    = "/iprl.POService/GetClusterStatus"
-	POService_EnqueueDirective_FullMethodName                    = "/iprl.POService/EnqueueDirective"
-	POService_EnqueueForwardingInfoElement_FullMethodName        = "/iprl.POService/EnqueueForwardingInfoElement"
+	ProbingDirectiveGeneratorInterface_Update_FullMethodName = "/iprl.ProbingDirectiveGeneratorInterface/Update"
 )
 
-// POServiceClient is the client API for POService service.
+// ProbingDirectiveGeneratorInterfaceClient is the client API for ProbingDirectiveGeneratorInterface service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
-type POServiceClient interface {
-	// Probing Agent calls this to register itself
-	RegisterProbingAgent(ctx context.Context, in *ProbingAgent, opts ...grpc.CallOption) (*RegisterProbingAgentResponse, error)
-	// Probing Agent calls this to unregister itself
-	UnregisterProbingAgent(ctx context.Context, in *UnregistrationRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
-	// Probing Directive Generator calls this to register itself
-	RegisterProbingDirectiveGenerator(ctx context.Context, in *ProbingDirectiveGenerator, opts ...grpc.CallOption) (*RegisterProbingDirectiveGeneratorResponse, error)
-	// Probing Directive Generator calls this to unregister itself
-	UnregisterProbingDirectiveGenerator(ctx context.Context, in *UnregistrationRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
-	// Anyone can call this to get the current status of the cluster
-	GetClusterStatus(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*ClusterStatus, error)
-	// Probing Directive Generator calls this to send probing directives
-	EnqueueDirective(ctx context.Context, opts ...grpc.CallOption) (grpc.ClientStreamingClient[ProbingDirective, emptypb.Empty], error)
-	// Probing Agent calls this to send results back
-	EnqueueForwardingInfoElement(ctx context.Context, opts ...grpc.CallOption) (grpc.ClientStreamingClient[ForwardingInfoElement, emptypb.Empty], error)
+//
+// === Probing Directive Generator ===
+type ProbingDirectiveGeneratorInterfaceClient interface {
+	Update(ctx context.Context, in *ProbingDirectiveGeneratorStatus, opts ...grpc.CallOption) (*emptypb.Empty, error)
 }
 
-type pOServiceClient struct {
+type probingDirectiveGeneratorInterfaceClient struct {
 	cc grpc.ClientConnInterface
 }
 
-func NewPOServiceClient(cc grpc.ClientConnInterface) POServiceClient {
-	return &pOServiceClient{cc}
+func NewProbingDirectiveGeneratorInterfaceClient(cc grpc.ClientConnInterface) ProbingDirectiveGeneratorInterfaceClient {
+	return &probingDirectiveGeneratorInterfaceClient{cc}
 }
 
-func (c *pOServiceClient) RegisterProbingAgent(ctx context.Context, in *ProbingAgent, opts ...grpc.CallOption) (*RegisterProbingAgentResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(RegisterProbingAgentResponse)
-	err := c.cc.Invoke(ctx, POService_RegisterProbingAgent_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *pOServiceClient) UnregisterProbingAgent(ctx context.Context, in *UnregistrationRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+func (c *probingDirectiveGeneratorInterfaceClient) Update(ctx context.Context, in *ProbingDirectiveGeneratorStatus, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(emptypb.Empty)
-	err := c.cc.Invoke(ctx, POService_UnregisterProbingAgent_FullMethodName, in, out, cOpts...)
+	err := c.cc.Invoke(ctx, ProbingDirectiveGeneratorInterface_Update_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *pOServiceClient) RegisterProbingDirectiveGenerator(ctx context.Context, in *ProbingDirectiveGenerator, opts ...grpc.CallOption) (*RegisterProbingDirectiveGeneratorResponse, error) {
+// ProbingDirectiveGeneratorInterfaceServer is the server API for ProbingDirectiveGeneratorInterface service.
+// All implementations must embed UnimplementedProbingDirectiveGeneratorInterfaceServer
+// for forward compatibility.
+//
+// === Probing Directive Generator ===
+type ProbingDirectiveGeneratorInterfaceServer interface {
+	Update(context.Context, *ProbingDirectiveGeneratorStatus) (*emptypb.Empty, error)
+	mustEmbedUnimplementedProbingDirectiveGeneratorInterfaceServer()
+}
+
+// UnimplementedProbingDirectiveGeneratorInterfaceServer must be embedded to have
+// forward compatible implementations.
+//
+// NOTE: this should be embedded by value instead of pointer to avoid a nil
+// pointer dereference when methods are called.
+type UnimplementedProbingDirectiveGeneratorInterfaceServer struct{}
+
+func (UnimplementedProbingDirectiveGeneratorInterfaceServer) Update(context.Context, *ProbingDirectiveGeneratorStatus) (*emptypb.Empty, error) {
+	return nil, status.Error(codes.Unimplemented, "method Update not implemented")
+}
+func (UnimplementedProbingDirectiveGeneratorInterfaceServer) mustEmbedUnimplementedProbingDirectiveGeneratorInterfaceServer() {
+}
+func (UnimplementedProbingDirectiveGeneratorInterfaceServer) testEmbeddedByValue() {}
+
+// UnsafeProbingDirectiveGeneratorInterfaceServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to ProbingDirectiveGeneratorInterfaceServer will
+// result in compilation errors.
+type UnsafeProbingDirectiveGeneratorInterfaceServer interface {
+	mustEmbedUnimplementedProbingDirectiveGeneratorInterfaceServer()
+}
+
+func RegisterProbingDirectiveGeneratorInterfaceServer(s grpc.ServiceRegistrar, srv ProbingDirectiveGeneratorInterfaceServer) {
+	// If the following call panics, it indicates UnimplementedProbingDirectiveGeneratorInterfaceServer was
+	// embedded by pointer and is nil.  This will cause panics if an
+	// unimplemented method is ever invoked, so we test this at initialization
+	// time to prevent it from happening at runtime later due to I/O.
+	if t, ok := srv.(interface{ testEmbeddedByValue() }); ok {
+		t.testEmbeddedByValue()
+	}
+	s.RegisterService(&ProbingDirectiveGeneratorInterface_ServiceDesc, srv)
+}
+
+func _ProbingDirectiveGeneratorInterface_Update_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ProbingDirectiveGeneratorStatus)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ProbingDirectiveGeneratorInterfaceServer).Update(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ProbingDirectiveGeneratorInterface_Update_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ProbingDirectiveGeneratorInterfaceServer).Update(ctx, req.(*ProbingDirectiveGeneratorStatus))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+// ProbingDirectiveGeneratorInterface_ServiceDesc is the grpc.ServiceDesc for ProbingDirectiveGeneratorInterface service.
+// It's only intended for direct use with grpc.RegisterService,
+// and not to be introspected or modified (even as a copy)
+var ProbingDirectiveGeneratorInterface_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "iprl.ProbingDirectiveGeneratorInterface",
+	HandlerType: (*ProbingDirectiveGeneratorInterfaceServer)(nil),
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "Update",
+			Handler:    _ProbingDirectiveGeneratorInterface_Update_Handler,
+		},
+	},
+	Streams:  []grpc.StreamDesc{},
+	Metadata: "iprl.proto",
+}
+
+const (
+	ProbingOrchestratorInterface_RegisterComponent_FullMethodName          = "/iprl.ProbingOrchestratorInterface/RegisterComponent"
+	ProbingOrchestratorInterface_UnRegisterComponent_FullMethodName        = "/iprl.ProbingOrchestratorInterface/UnRegisterComponent"
+	ProbingOrchestratorInterface_PushProbingDirectives_FullMethodName      = "/iprl.ProbingOrchestratorInterface/PushProbingDirectives"
+	ProbingOrchestratorInterface_PushForwardingInfoElements_FullMethodName = "/iprl.ProbingOrchestratorInterface/PushForwardingInfoElements"
+	ProbingOrchestratorInterface_PullForwardingInfoElements_FullMethodName = "/iprl.ProbingOrchestratorInterface/PullForwardingInfoElements"
+)
+
+// ProbingOrchestratorInterfaceClient is the client API for ProbingOrchestratorInterface service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
+type ProbingOrchestratorInterfaceClient interface {
+	// Any component who wants to register itsef should call this function. Recalling this with an existing
+	// uuid will update the spec.
+	RegisterComponent(ctx context.Context, in *RegisterComponentRequest, opts ...grpc.CallOption) (*RegisterComponentResponse, error)
+	// Any component who wants to unregister themsevelves for graceful shutdown.
+	UnRegisterComponent(ctx context.Context, in *UnRegisterComponentRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	// Any component who wants to stream probing directives to the orchstrator should use this.
+	PushProbingDirectives(ctx context.Context, opts ...grpc.CallOption) (grpc.ClientStreamingClient[ProbingDirective, emptypb.Empty], error)
+	// Any component who wants to stream probing directives to the orchstrator should use this.
+	PushForwardingInfoElements(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[ForwardingInfoElement, ProbingDirective], error)
+	// This is the actual streaming the generated forwarding info elements.
+	PullForwardingInfoElements(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (grpc.ServerStreamingClient[ForwardingInfoElement], error)
+}
+
+type probingOrchestratorInterfaceClient struct {
+	cc grpc.ClientConnInterface
+}
+
+func NewProbingOrchestratorInterfaceClient(cc grpc.ClientConnInterface) ProbingOrchestratorInterfaceClient {
+	return &probingOrchestratorInterfaceClient{cc}
+}
+
+func (c *probingOrchestratorInterfaceClient) RegisterComponent(ctx context.Context, in *RegisterComponentRequest, opts ...grpc.CallOption) (*RegisterComponentResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(RegisterProbingDirectiveGeneratorResponse)
-	err := c.cc.Invoke(ctx, POService_RegisterProbingDirectiveGenerator_FullMethodName, in, out, cOpts...)
+	out := new(RegisterComponentResponse)
+	err := c.cc.Invoke(ctx, ProbingOrchestratorInterface_RegisterComponent_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *pOServiceClient) UnregisterProbingDirectiveGenerator(ctx context.Context, in *UnregistrationRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+func (c *probingOrchestratorInterfaceClient) UnRegisterComponent(ctx context.Context, in *UnRegisterComponentRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(emptypb.Empty)
-	err := c.cc.Invoke(ctx, POService_UnregisterProbingDirectiveGenerator_FullMethodName, in, out, cOpts...)
+	err := c.cc.Invoke(ctx, ProbingOrchestratorInterface_UnRegisterComponent_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *pOServiceClient) GetClusterStatus(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*ClusterStatus, error) {
+func (c *probingOrchestratorInterfaceClient) PushProbingDirectives(ctx context.Context, opts ...grpc.CallOption) (grpc.ClientStreamingClient[ProbingDirective, emptypb.Empty], error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(ClusterStatus)
-	err := c.cc.Invoke(ctx, POService_GetClusterStatus_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *pOServiceClient) EnqueueDirective(ctx context.Context, opts ...grpc.CallOption) (grpc.ClientStreamingClient[ProbingDirective, emptypb.Empty], error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	stream, err := c.cc.NewStream(ctx, &POService_ServiceDesc.Streams[0], POService_EnqueueDirective_FullMethodName, cOpts...)
+	stream, err := c.cc.NewStream(ctx, &ProbingOrchestratorInterface_ServiceDesc.Streams[0], ProbingOrchestratorInterface_PushProbingDirectives_FullMethodName, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -363,233 +298,195 @@ func (c *pOServiceClient) EnqueueDirective(ctx context.Context, opts ...grpc.Cal
 }
 
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
-type POService_EnqueueDirectiveClient = grpc.ClientStreamingClient[ProbingDirective, emptypb.Empty]
+type ProbingOrchestratorInterface_PushProbingDirectivesClient = grpc.ClientStreamingClient[ProbingDirective, emptypb.Empty]
 
-func (c *pOServiceClient) EnqueueForwardingInfoElement(ctx context.Context, opts ...grpc.CallOption) (grpc.ClientStreamingClient[ForwardingInfoElement, emptypb.Empty], error) {
+func (c *probingOrchestratorInterfaceClient) PushForwardingInfoElements(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[ForwardingInfoElement, ProbingDirective], error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	stream, err := c.cc.NewStream(ctx, &POService_ServiceDesc.Streams[1], POService_EnqueueForwardingInfoElement_FullMethodName, cOpts...)
+	stream, err := c.cc.NewStream(ctx, &ProbingOrchestratorInterface_ServiceDesc.Streams[1], ProbingOrchestratorInterface_PushForwardingInfoElements_FullMethodName, cOpts...)
 	if err != nil {
 		return nil, err
 	}
-	x := &grpc.GenericClientStream[ForwardingInfoElement, emptypb.Empty]{ClientStream: stream}
+	x := &grpc.GenericClientStream[ForwardingInfoElement, ProbingDirective]{ClientStream: stream}
 	return x, nil
 }
 
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
-type POService_EnqueueForwardingInfoElementClient = grpc.ClientStreamingClient[ForwardingInfoElement, emptypb.Empty]
+type ProbingOrchestratorInterface_PushForwardingInfoElementsClient = grpc.BidiStreamingClient[ForwardingInfoElement, ProbingDirective]
 
-// POServiceServer is the server API for POService service.
-// All implementations must embed UnimplementedPOServiceServer
-// for forward compatibility.
-type POServiceServer interface {
-	// Probing Agent calls this to register itself
-	RegisterProbingAgent(context.Context, *ProbingAgent) (*RegisterProbingAgentResponse, error)
-	// Probing Agent calls this to unregister itself
-	UnregisterProbingAgent(context.Context, *UnregistrationRequest) (*emptypb.Empty, error)
-	// Probing Directive Generator calls this to register itself
-	RegisterProbingDirectiveGenerator(context.Context, *ProbingDirectiveGenerator) (*RegisterProbingDirectiveGeneratorResponse, error)
-	// Probing Directive Generator calls this to unregister itself
-	UnregisterProbingDirectiveGenerator(context.Context, *UnregistrationRequest) (*emptypb.Empty, error)
-	// Anyone can call this to get the current status of the cluster
-	GetClusterStatus(context.Context, *emptypb.Empty) (*ClusterStatus, error)
-	// Probing Directive Generator calls this to send probing directives
-	EnqueueDirective(grpc.ClientStreamingServer[ProbingDirective, emptypb.Empty]) error
-	// Probing Agent calls this to send results back
-	EnqueueForwardingInfoElement(grpc.ClientStreamingServer[ForwardingInfoElement, emptypb.Empty]) error
-	mustEmbedUnimplementedPOServiceServer()
+func (c *probingOrchestratorInterfaceClient) PullForwardingInfoElements(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (grpc.ServerStreamingClient[ForwardingInfoElement], error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &ProbingOrchestratorInterface_ServiceDesc.Streams[2], ProbingOrchestratorInterface_PullForwardingInfoElements_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &grpc.GenericClientStream[emptypb.Empty, ForwardingInfoElement]{ClientStream: stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
 }
 
-// UnimplementedPOServiceServer must be embedded to have
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type ProbingOrchestratorInterface_PullForwardingInfoElementsClient = grpc.ServerStreamingClient[ForwardingInfoElement]
+
+// ProbingOrchestratorInterfaceServer is the server API for ProbingOrchestratorInterface service.
+// All implementations must embed UnimplementedProbingOrchestratorInterfaceServer
+// for forward compatibility.
+type ProbingOrchestratorInterfaceServer interface {
+	// Any component who wants to register itsef should call this function. Recalling this with an existing
+	// uuid will update the spec.
+	RegisterComponent(context.Context, *RegisterComponentRequest) (*RegisterComponentResponse, error)
+	// Any component who wants to unregister themsevelves for graceful shutdown.
+	UnRegisterComponent(context.Context, *UnRegisterComponentRequest) (*emptypb.Empty, error)
+	// Any component who wants to stream probing directives to the orchstrator should use this.
+	PushProbingDirectives(grpc.ClientStreamingServer[ProbingDirective, emptypb.Empty]) error
+	// Any component who wants to stream probing directives to the orchstrator should use this.
+	PushForwardingInfoElements(grpc.BidiStreamingServer[ForwardingInfoElement, ProbingDirective]) error
+	// This is the actual streaming the generated forwarding info elements.
+	PullForwardingInfoElements(*emptypb.Empty, grpc.ServerStreamingServer[ForwardingInfoElement]) error
+	mustEmbedUnimplementedProbingOrchestratorInterfaceServer()
+}
+
+// UnimplementedProbingOrchestratorInterfaceServer must be embedded to have
 // forward compatible implementations.
 //
 // NOTE: this should be embedded by value instead of pointer to avoid a nil
 // pointer dereference when methods are called.
-type UnimplementedPOServiceServer struct{}
+type UnimplementedProbingOrchestratorInterfaceServer struct{}
 
-func (UnimplementedPOServiceServer) RegisterProbingAgent(context.Context, *ProbingAgent) (*RegisterProbingAgentResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method RegisterProbingAgent not implemented")
+func (UnimplementedProbingOrchestratorInterfaceServer) RegisterComponent(context.Context, *RegisterComponentRequest) (*RegisterComponentResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method RegisterComponent not implemented")
 }
-func (UnimplementedPOServiceServer) UnregisterProbingAgent(context.Context, *UnregistrationRequest) (*emptypb.Empty, error) {
-	return nil, status.Error(codes.Unimplemented, "method UnregisterProbingAgent not implemented")
+func (UnimplementedProbingOrchestratorInterfaceServer) UnRegisterComponent(context.Context, *UnRegisterComponentRequest) (*emptypb.Empty, error) {
+	return nil, status.Error(codes.Unimplemented, "method UnRegisterComponent not implemented")
 }
-func (UnimplementedPOServiceServer) RegisterProbingDirectiveGenerator(context.Context, *ProbingDirectiveGenerator) (*RegisterProbingDirectiveGeneratorResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method RegisterProbingDirectiveGenerator not implemented")
+func (UnimplementedProbingOrchestratorInterfaceServer) PushProbingDirectives(grpc.ClientStreamingServer[ProbingDirective, emptypb.Empty]) error {
+	return status.Error(codes.Unimplemented, "method PushProbingDirectives not implemented")
 }
-func (UnimplementedPOServiceServer) UnregisterProbingDirectiveGenerator(context.Context, *UnregistrationRequest) (*emptypb.Empty, error) {
-	return nil, status.Error(codes.Unimplemented, "method UnregisterProbingDirectiveGenerator not implemented")
+func (UnimplementedProbingOrchestratorInterfaceServer) PushForwardingInfoElements(grpc.BidiStreamingServer[ForwardingInfoElement, ProbingDirective]) error {
+	return status.Error(codes.Unimplemented, "method PushForwardingInfoElements not implemented")
 }
-func (UnimplementedPOServiceServer) GetClusterStatus(context.Context, *emptypb.Empty) (*ClusterStatus, error) {
-	return nil, status.Error(codes.Unimplemented, "method GetClusterStatus not implemented")
+func (UnimplementedProbingOrchestratorInterfaceServer) PullForwardingInfoElements(*emptypb.Empty, grpc.ServerStreamingServer[ForwardingInfoElement]) error {
+	return status.Error(codes.Unimplemented, "method PullForwardingInfoElements not implemented")
 }
-func (UnimplementedPOServiceServer) EnqueueDirective(grpc.ClientStreamingServer[ProbingDirective, emptypb.Empty]) error {
-	return status.Error(codes.Unimplemented, "method EnqueueDirective not implemented")
+func (UnimplementedProbingOrchestratorInterfaceServer) mustEmbedUnimplementedProbingOrchestratorInterfaceServer() {
 }
-func (UnimplementedPOServiceServer) EnqueueForwardingInfoElement(grpc.ClientStreamingServer[ForwardingInfoElement, emptypb.Empty]) error {
-	return status.Error(codes.Unimplemented, "method EnqueueForwardingInfoElement not implemented")
-}
-func (UnimplementedPOServiceServer) mustEmbedUnimplementedPOServiceServer() {}
-func (UnimplementedPOServiceServer) testEmbeddedByValue()                   {}
+func (UnimplementedProbingOrchestratorInterfaceServer) testEmbeddedByValue() {}
 
-// UnsafePOServiceServer may be embedded to opt out of forward compatibility for this service.
-// Use of this interface is not recommended, as added methods to POServiceServer will
+// UnsafeProbingOrchestratorInterfaceServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to ProbingOrchestratorInterfaceServer will
 // result in compilation errors.
-type UnsafePOServiceServer interface {
-	mustEmbedUnimplementedPOServiceServer()
+type UnsafeProbingOrchestratorInterfaceServer interface {
+	mustEmbedUnimplementedProbingOrchestratorInterfaceServer()
 }
 
-func RegisterPOServiceServer(s grpc.ServiceRegistrar, srv POServiceServer) {
-	// If the following call panics, it indicates UnimplementedPOServiceServer was
+func RegisterProbingOrchestratorInterfaceServer(s grpc.ServiceRegistrar, srv ProbingOrchestratorInterfaceServer) {
+	// If the following call panics, it indicates UnimplementedProbingOrchestratorInterfaceServer was
 	// embedded by pointer and is nil.  This will cause panics if an
 	// unimplemented method is ever invoked, so we test this at initialization
 	// time to prevent it from happening at runtime later due to I/O.
 	if t, ok := srv.(interface{ testEmbeddedByValue() }); ok {
 		t.testEmbeddedByValue()
 	}
-	s.RegisterService(&POService_ServiceDesc, srv)
+	s.RegisterService(&ProbingOrchestratorInterface_ServiceDesc, srv)
 }
 
-func _POService_RegisterProbingAgent_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ProbingAgent)
+func _ProbingOrchestratorInterface_RegisterComponent_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RegisterComponentRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(POServiceServer).RegisterProbingAgent(ctx, in)
+		return srv.(ProbingOrchestratorInterfaceServer).RegisterComponent(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: POService_RegisterProbingAgent_FullMethodName,
+		FullMethod: ProbingOrchestratorInterface_RegisterComponent_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(POServiceServer).RegisterProbingAgent(ctx, req.(*ProbingAgent))
+		return srv.(ProbingOrchestratorInterfaceServer).RegisterComponent(ctx, req.(*RegisterComponentRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _POService_UnregisterProbingAgent_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(UnregistrationRequest)
+func _ProbingOrchestratorInterface_UnRegisterComponent_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UnRegisterComponentRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(POServiceServer).UnregisterProbingAgent(ctx, in)
+		return srv.(ProbingOrchestratorInterfaceServer).UnRegisterComponent(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: POService_UnregisterProbingAgent_FullMethodName,
+		FullMethod: ProbingOrchestratorInterface_UnRegisterComponent_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(POServiceServer).UnregisterProbingAgent(ctx, req.(*UnregistrationRequest))
+		return srv.(ProbingOrchestratorInterfaceServer).UnRegisterComponent(ctx, req.(*UnRegisterComponentRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _POService_RegisterProbingDirectiveGenerator_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ProbingDirectiveGenerator)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(POServiceServer).RegisterProbingDirectiveGenerator(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: POService_RegisterProbingDirectiveGenerator_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(POServiceServer).RegisterProbingDirectiveGenerator(ctx, req.(*ProbingDirectiveGenerator))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _POService_UnregisterProbingDirectiveGenerator_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(UnregistrationRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(POServiceServer).UnregisterProbingDirectiveGenerator(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: POService_UnregisterProbingDirectiveGenerator_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(POServiceServer).UnregisterProbingDirectiveGenerator(ctx, req.(*UnregistrationRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _POService_GetClusterStatus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(emptypb.Empty)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(POServiceServer).GetClusterStatus(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: POService_GetClusterStatus_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(POServiceServer).GetClusterStatus(ctx, req.(*emptypb.Empty))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _POService_EnqueueDirective_Handler(srv interface{}, stream grpc.ServerStream) error {
-	return srv.(POServiceServer).EnqueueDirective(&grpc.GenericServerStream[ProbingDirective, emptypb.Empty]{ServerStream: stream})
+func _ProbingOrchestratorInterface_PushProbingDirectives_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(ProbingOrchestratorInterfaceServer).PushProbingDirectives(&grpc.GenericServerStream[ProbingDirective, emptypb.Empty]{ServerStream: stream})
 }
 
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
-type POService_EnqueueDirectiveServer = grpc.ClientStreamingServer[ProbingDirective, emptypb.Empty]
+type ProbingOrchestratorInterface_PushProbingDirectivesServer = grpc.ClientStreamingServer[ProbingDirective, emptypb.Empty]
 
-func _POService_EnqueueForwardingInfoElement_Handler(srv interface{}, stream grpc.ServerStream) error {
-	return srv.(POServiceServer).EnqueueForwardingInfoElement(&grpc.GenericServerStream[ForwardingInfoElement, emptypb.Empty]{ServerStream: stream})
+func _ProbingOrchestratorInterface_PushForwardingInfoElements_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(ProbingOrchestratorInterfaceServer).PushForwardingInfoElements(&grpc.GenericServerStream[ForwardingInfoElement, ProbingDirective]{ServerStream: stream})
 }
 
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
-type POService_EnqueueForwardingInfoElementServer = grpc.ClientStreamingServer[ForwardingInfoElement, emptypb.Empty]
+type ProbingOrchestratorInterface_PushForwardingInfoElementsServer = grpc.BidiStreamingServer[ForwardingInfoElement, ProbingDirective]
 
-// POService_ServiceDesc is the grpc.ServiceDesc for POService service.
+func _ProbingOrchestratorInterface_PullForwardingInfoElements_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(emptypb.Empty)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(ProbingOrchestratorInterfaceServer).PullForwardingInfoElements(m, &grpc.GenericServerStream[emptypb.Empty, ForwardingInfoElement]{ServerStream: stream})
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type ProbingOrchestratorInterface_PullForwardingInfoElementsServer = grpc.ServerStreamingServer[ForwardingInfoElement]
+
+// ProbingOrchestratorInterface_ServiceDesc is the grpc.ServiceDesc for ProbingOrchestratorInterface service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
-var POService_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "iprl.POService",
-	HandlerType: (*POServiceServer)(nil),
+var ProbingOrchestratorInterface_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "iprl.ProbingOrchestratorInterface",
+	HandlerType: (*ProbingOrchestratorInterfaceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "RegisterProbingAgent",
-			Handler:    _POService_RegisterProbingAgent_Handler,
+			MethodName: "RegisterComponent",
+			Handler:    _ProbingOrchestratorInterface_RegisterComponent_Handler,
 		},
 		{
-			MethodName: "UnregisterProbingAgent",
-			Handler:    _POService_UnregisterProbingAgent_Handler,
-		},
-		{
-			MethodName: "RegisterProbingDirectiveGenerator",
-			Handler:    _POService_RegisterProbingDirectiveGenerator_Handler,
-		},
-		{
-			MethodName: "UnregisterProbingDirectiveGenerator",
-			Handler:    _POService_UnregisterProbingDirectiveGenerator_Handler,
-		},
-		{
-			MethodName: "GetClusterStatus",
-			Handler:    _POService_GetClusterStatus_Handler,
+			MethodName: "UnRegisterComponent",
+			Handler:    _ProbingOrchestratorInterface_UnRegisterComponent_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{
 		{
-			StreamName:    "EnqueueDirective",
-			Handler:       _POService_EnqueueDirective_Handler,
+			StreamName:    "PushProbingDirectives",
+			Handler:       _ProbingOrchestratorInterface_PushProbingDirectives_Handler,
 			ClientStreams: true,
 		},
 		{
-			StreamName:    "EnqueueForwardingInfoElement",
-			Handler:       _POService_EnqueueForwardingInfoElement_Handler,
+			StreamName:    "PushForwardingInfoElements",
+			Handler:       _ProbingOrchestratorInterface_PushForwardingInfoElements_Handler,
+			ServerStreams: true,
 			ClientStreams: true,
+		},
+		{
+			StreamName:    "PullForwardingInfoElements",
+			Handler:       _ProbingOrchestratorInterface_PullForwardingInfoElements_Handler,
+			ServerStreams: true,
 		},
 	},
 	Metadata: "iprl.proto",
