@@ -72,13 +72,13 @@ message VantagePoint {
 }
 
 message ProbingAgentSpec {
-  string        software_version = 2;
-  string        interface_version = 3;
-  string        interface_addr = 4;
-  VantagePoint  vantage_point = 5;
-  uint32        directive_buffer_length = 6;
-  string        orchestrator_address = 9;
-  uint32        num_retries = 10;
+  string            software_version = 2;
+  string            interface_version = 3;
+  string            interface_addr = 4;
+  VantagePoint      vantage_point = 5;
+  uint32            directive_buffer_length = 6;
+  string            orchestrator_address = 9;
+  uint32            num_retries = 10;
 }
 
 message ProbingAgentStatus {
@@ -103,7 +103,7 @@ message ProbingDirectiveGeneratorSpec {
 message ProbingDirectiveGeneratorStatus {
   string                    uuid = 1;
   uint32                    probe_generation_rate_per_second_per_agent = 6;
-  repeated ProbingAgentSpec sgent_specs = 7;
+  repeated ProbingAgentSpec agent_specs = 7;
   map<string, string>       tags = 9;
 }
 

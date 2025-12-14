@@ -5,11 +5,20 @@ import (
 	"flag"
 	"iprl-demo/internal/components/generator"
 	pb "iprl-demo/internal/gen/proto"
-	"iprl-demo/internal/servers"
 	"iprl-demo/internal/util"
+	"log"
 	"os"
 	"os/signal"
 	"syscall"
+
+	"golang.org/x/sync/errgroup"
+)
+
+// Set at build time
+var (
+	Version   = "dev"
+	GitCommit = "unknown"
+	BuildTime = "unknown"
 )
 
 func main() {
@@ -27,8 +36,8 @@ func main() {
 
 	// For now this is mock, in the future some of these values should be retrieved.
 	spec := &pb.ProbingDirectiveGeneratorSpec{
-		SoftwareVersion:             "1.0.0",
-		InterfaceVersion:            "1.0.0",
+		SoftwareVersion:             Version,
+		InterfaceVersion:            Version,
 		InterfaceAddr:               *address,
 		OrchestratorAddress:         *poAddr,
 		NumRetries:                  uint32(*retries),
@@ -39,18 +48,25 @@ func main() {
 		Seed:                        *seed,
 	}
 
-	probingDirectiveGenerator := generator.NewMockProbingDirectiveGenerator(spec)
-	probingDirectiveGeneratorServer := servers.NewGeneratorServer(probingDirectiveGenerator, spec)
+	probingGenerator := generator.NewGeneratorManager(spec)
 
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	g, ctx := errgroup.WithContext(ctx)
 
-	go func() {
+	// Signal handler
+	g.Go(func() error {
 		sigCh := make(chan os.Signal, 1)
 		signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
-		<-sigCh
+		log.Printf("Received signal: %v", <-sigCh)
 		cancel()
-	}()
+		return nil
+	})
 
-	probingDirectiveGeneratorServer.Run(ctx)
+	g.Go(func() error {
+		return probingGenerator.Run(ctx)
+	})
+
+	if err := g.Wait(); err != nil {
+		log.Fatalf("Error: %v", err)
+	}
 }

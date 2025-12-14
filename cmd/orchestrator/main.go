@@ -3,13 +3,23 @@ package main
 import (
 	"context"
 	"flag"
-	"os"
-	"os/signal"
-	"syscall"
 
 	"iprl-demo/internal/components/orchestrator"
 	pb "iprl-demo/internal/gen/proto"
-	"iprl-demo/internal/servers"
+	"log"
+	"net"
+	"os/signal"
+	"syscall"
+
+	"golang.org/x/sync/errgroup"
+	"google.golang.org/grpc"
+)
+
+// Set at build time
+var (
+	Version   = "dev"
+	GitCommit = "unknown"
+	BuildTime = "unknown"
 )
 
 func main() {
@@ -23,8 +33,8 @@ func main() {
 	flag.Parse()
 
 	spec := &pb.ProbingOrchestratorSpec{
-		SoftwareVersion:             "1.0.0",
-		InterfaceVersion:            "1.0.0",
+		SoftwareVersion:             Version,
+		InterfaceVersion:            Version,
 		InterfaceAddr:               *address,
 		NumRetries:                  uint32(*retries),
 		DefaultGlobalProbingRateCap: uint32(*rate),
@@ -32,18 +42,47 @@ func main() {
 		ElementBufferLength:         uint32(*elementBuff),
 	}
 
-	probingOrchestrator := orchestrator.NewRealProbingOrchestrator(spec)
-	probingOrchestratorServer := servers.NewOrchestratorServer(probingOrchestrator, spec)
+	orchestratorManager := orchestrator.NewOrchestratorManager(spec)
 
-	ctx, cancel := context.WithCancel(context.Background())
+	// Setup context with signal handling
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
 
-	go func() {
-		sigCh := make(chan os.Signal, 1)
-		signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
-		<-sigCh
-		cancel()
-	}()
+	g, ctx := errgroup.WithContext(ctx)
 
-	probingOrchestratorServer.Run(ctx)
+	// gRPC server
+	var grpcServer *grpc.Server
+	g.Go(func() error {
+		lis, err := net.Listen("tcp", *address)
+		if err != nil {
+			return err
+		}
+
+		grpcServer = grpc.NewServer()
+		orchestratorManager.Register(grpcServer)
+
+		log.Printf("Orchestrator listening on %s", *address)
+		return grpcServer.Serve(lis)
+	})
+
+	// Graceful shutdown
+	g.Go(func() error {
+		<-ctx.Done()
+		if grpcServer != nil {
+			log.Println("Shutting down gRPC server...")
+			grpcServer.GracefulStop()
+		}
+		return nil
+	})
+
+	// Run orchestrator manager
+	g.Go(func() error {
+		return orchestratorManager.Run(ctx)
+	})
+
+	if err := g.Wait(); err != nil && err != context.Canceled {
+		log.Fatalf("Error: %v", err)
+	}
+
+	log.Println("Orchestrator shutdown complete")
 }

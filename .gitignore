@@ -1,2 +1,40 @@
-internal/gen/proto/iprl.pb.go
-internal/gen/proto/iprl_grpc.pb.go
+# Generated protobuf files
+internal/gen/proto/*.pb.go
+
+# Binaries
+bin/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Go
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# Dependency directories
+vendor/
+
+# Debug
+__debug_bin
+
+# Environment
+.env
+.env.local
+
+# Logs
+*.log
+
+# Data directories (if using local raft storage)
+data/
