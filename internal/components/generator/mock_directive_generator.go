@@ -144,12 +144,3 @@ func (g *MockDirectiveGenerator) generateDirective() *pb.ProbingDirective {
 		},
 	}
 }
-
-func generateID(rng *rand.Rand) string {
-	const chars = "abcdefghijklmnopqrstuvwxyz0123456789"
-	b := make([]byte, 12)
-	for i := range b {
-		b[i] = chars[rng.Intn(len(chars))]
-	}
-	return string(b)
-}

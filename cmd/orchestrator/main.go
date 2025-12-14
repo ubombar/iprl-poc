@@ -3,12 +3,15 @@ package main
 import (
 	"context"
 	"flag"
+	"net/http"
 
 	"iprl-demo/internal/components/orchestrator"
 	pb "iprl-demo/internal/gen/proto"
 	"log"
 	"os/signal"
 	"syscall"
+
+	_ "net/http/pprof" // enable cpu profiler.
 )
 
 // Set at build time
@@ -44,6 +47,10 @@ func main() {
 
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
+
+	go func() {
+		http.ListenAndServe("localhost:6060", nil)
+	}()
 
 	if err := orchestratorManager.Run(ctx); err != nil && err != context.Canceled {
 		log.Fatalf("error on orchestrator: %v", err)

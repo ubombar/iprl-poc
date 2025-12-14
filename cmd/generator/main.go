@@ -7,8 +7,11 @@ import (
 	pb "iprl-demo/internal/gen/proto"
 	"iprl-demo/internal/util"
 	"log"
+	"net/http"
 	"os/signal"
 	"syscall"
+
+	_ "net/http/pprof" // enable cpu profiler.
 )
 
 // Set at build time
@@ -27,7 +30,7 @@ func main() {
 		retries          = flag.Uint("retries", 3, "Number of retries")
 		protocols        = flag.String("protocols", "icmp,udp", "Comma-separated list of protocols (icmp, tcp, udp, dccp, icmpv6)")
 		seed             = flag.Uint("seed", 42, "Seed for the mock generator")
-		mockProberBuffer = flag.Uint("mock-buffer", 100, "Buffer length of the mock generator")
+		mockProberBuffer = flag.Uint("mock-buffer", 10000, "Buffer length of the mock generator")
 	)
 	flag.Parse()
 
@@ -54,6 +57,10 @@ func main() {
 
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
+
+	go func() {
+		http.ListenAndServe("localhost:6060", nil)
+	}()
 
 	if err := probingGenerator.Run(ctx); err != nil && err != context.Canceled {
 		log.Fatalf("error on generator: %v", err)

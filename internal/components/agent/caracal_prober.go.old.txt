@@ -1,0 +1,311 @@
+package agent
+
+import (
+	"bufio"
+	"context"
+	"errors"
+	"fmt"
+	"net"
+	"os/exec"
+	"strconv"
+	"strings"
+	"sync"
+	"sync/atomic"
+	"time"
+
+	"iprl-demo/internal/components"
+	pb "iprl-demo/internal/gen/proto"
+
+	"google.golang.org/protobuf/types/known/timestamppb"
+)
+
+type CaracalProber struct {
+	inCh  chan *pb.ProbingDirective
+	outCh chan *pb.ForwardingInfoElement
+
+	agentManager components.AgentManager
+
+	cmd    *exec.Cmd
+	stdin  *bufio.Writer
+	stdout *bufio.Scanner
+
+	timeout time.Duration
+
+	mu       sync.Mutex
+	inflight map[directiveKey]*inflightProbe
+
+	closed  atomic.Bool
+	closeCh chan struct{}
+	once    sync.Once
+}
+
+var _ components.Prober = (*CaracalProber)(nil)
+
+type directiveKey struct {
+	dstIP    string
+	protocol pb.Protocol
+	srcPort  uint32
+	dstPort  uint32
+	nearTTL  uint32
+}
+
+type inflightProbe struct {
+	directive *pb.ProbingDirective
+	sentAt    time.Time
+
+	nearReply *caracalReply
+	farReply  *caracalReply
+}
+
+type caracalReply struct {
+	probeTTL uint32
+	replyIP  net.IP
+	rtt      time.Duration
+	size     int
+	ts       time.Time
+}
+
+func NewCaracalProber(
+	buffer int,
+	timeout time.Duration,
+	agentManager components.AgentManager,
+) (*CaracalProber, error) {
+	return &CaracalProber{
+		inCh:         make(chan *pb.ProbingDirective, buffer),
+		outCh:        make(chan *pb.ForwardingInfoElement, buffer),
+		timeout:      timeout,
+		inflight:     make(map[directiveKey]*inflightProbe),
+		closeCh:      make(chan struct{}),
+		agentManager: agentManager,
+	}, nil
+}
+
+func (c *CaracalProber) PushChannel() chan<- *pb.ProbingDirective {
+	return c.inCh
+}
+
+func (c *CaracalProber) PullChannel() <-chan *pb.ForwardingInfoElement {
+	return c.outCh
+}
+
+func (c *CaracalProber) Register(g components.AgentManager) {
+	c.agentManager = g
+}
+
+func (c *CaracalProber) Run(ctx context.Context) error {
+	if err := c.startCaracal(); err != nil {
+		return err
+	}
+
+	go c.readReplies(ctx)
+	go c.reapTimeouts(ctx)
+
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		case <-c.closeCh:
+			return nil
+		case dir := <-c.inCh:
+			c.sendDirective(dir)
+		}
+	}
+}
+
+func (c *CaracalProber) Close() error {
+	if c.closed.Swap(true) {
+		return nil
+	}
+
+	c.once.Do(func() {
+		close(c.closeCh)
+		if c.cmd != nil && c.cmd.Process != nil {
+			_ = c.cmd.Process.Kill()
+		}
+		close(c.outCh)
+	})
+
+	return nil
+}
+
+func (c *CaracalProber) startCaracal() error {
+	cmd := exec.Command("caracal")
+
+	stdin, err := cmd.StdinPipe()
+	if err != nil {
+		return err
+	}
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return err
+	}
+
+	c.stdin = bufio.NewWriter(stdin)
+	c.stdout = bufio.NewScanner(stdout)
+	c.stdout.Buffer(make([]byte, 0, 64*1024), 1024*1024)
+
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+
+	c.cmd = cmd
+	return nil
+}
+
+func (c *CaracalProber) sendDirective(dir *pb.ProbingDirective) {
+	spec := c.agentManager.GetSpec()
+	if spec == nil || dir.HeaderParameters == nil {
+		return
+	}
+
+	srcPort := dir.HeaderParameters.GetSourcePort()
+	dstPort := dir.HeaderParameters.GetDestinationPort()
+
+	key := directiveKey{
+		dstIP:    net.IP(dir.DestinationAddress).String(),
+		protocol: dir.Protocol,
+		srcPort:  srcPort,
+		dstPort:  dstPort,
+		nearTTL:  dir.NearTtl,
+	}
+
+	c.mu.Lock()
+	c.inflight[key] = &inflightProbe{
+		directive: dir,
+		sentAt:    time.Now(),
+	}
+	c.mu.Unlock()
+
+	c.writeProbe(dir, dir.NearTtl)
+	c.writeProbe(dir, dir.NearTtl+1)
+}
+
+func (c *CaracalProber) writeProbe(dir *pb.ProbingDirective, ttl uint32) {
+	h := dir.HeaderParameters
+
+	line := fmt.Sprintf(
+		"%s,%d,%d,%d,%d\n",
+		net.IP(dir.DestinationAddress).String(),
+		h.GetSourcePort(),
+		h.GetDestinationPort(),
+		ttl,
+		dir.Protocol,
+	)
+
+	_, _ = c.stdin.WriteString(line)
+	_ = c.stdin.Flush()
+}
+
+func (c *CaracalProber) readReplies(ctx context.Context) {
+	for c.stdout.Scan() {
+		select {
+		case <-ctx.Done():
+			return
+		case <-c.closeCh:
+			return
+		default:
+		}
+
+		reply, err := parseCaracalReply(c.stdout.Text())
+		if err != nil {
+			continue
+		}
+
+		c.handleReply(reply)
+	}
+}
+
+func parseCaracalReply(line string) (*caracalReply, error) {
+	fields := strings.Split(line, ",")
+	if len(fields) < 17 {
+		return nil, errors.New("invalid reply")
+	}
+
+	ttl, _ := strconv.Atoi(fields[6])
+	rttMs, _ := strconv.ParseFloat(fields[15], 64)
+
+	return &caracalReply{
+		probeTTL: uint32(ttl),
+		replyIP:  net.ParseIP(fields[8]),
+		rtt:      time.Duration(rttMs * float64(time.Millisecond)),
+		size:     atoi(fields[13]),
+		ts:       time.Now(),
+	}, nil
+}
+
+func (c *CaracalProber) handleReply(r *caracalReply) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	for k, p := range c.inflight {
+		if r.probeTTL == k.nearTTL {
+			p.nearReply = r
+		} else if r.probeTTL == k.nearTTL+1 {
+			p.farReply = r
+		}
+
+		if p.nearReply != nil && p.farReply != nil {
+			delete(c.inflight, k)
+			elem := c.buildElement(p)
+			select {
+			case c.outCh <- elem:
+			default:
+			}
+		}
+	}
+}
+
+func (c *CaracalProber) buildElement(p *inflightProbe) *pb.ForwardingInfoElement {
+	now := time.Now()
+
+	return &pb.ForwardingInfoElement{
+		VantagePoint:     c.agentManager.GetSpec().VantagePoint,
+		FlowId:           uint64(now.UnixNano()),
+		NearTtl:          p.directive.NearTtl,
+		NearReplyAddress: p.nearReply.replyIP,
+		FarReplyAddress:  p.farReply.replyIP,
+		DestinationAddr:  p.directive.DestinationAddress,
+		PacketSize:       int32(p.nearReply.size),
+		NearRtt: &pb.RTTInfo{
+			SentAt:     timestamppb.New(p.nearReply.ts),
+			ReceivedAt: timestamppb.New(p.nearReply.ts.Add(p.nearReply.rtt)),
+		},
+		FarRtt: &pb.RTTInfo{
+			SentAt:     timestamppb.New(p.farReply.ts),
+			ReceivedAt: timestamppb.New(p.farReply.ts.Add(p.farReply.rtt)),
+		},
+		PacketsSent:           2,
+		PacketsReceived:       2,
+		ChangeType:            pb.ChangeType_ANNOUNCED,
+		JustificationType:     pb.JustificationType_OBSERVED,
+		ConstructionTimestamp: timestamppb.New(now),
+	}
+}
+
+func (c *CaracalProber) reapTimeouts(ctx context.Context) {
+	t := time.NewTicker(time.Second)
+	defer t.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-c.closeCh:
+			return
+		case <-t.C:
+			now := time.Now()
+			c.mu.Lock()
+			for k, p := range c.inflight {
+				if now.Sub(p.sentAt) > c.timeout {
+					delete(c.inflight, k)
+				}
+			}
+			c.mu.Unlock()
+		}
+	}
+}
+
+func atoi(s string) int {
+	i, _ := strconv.Atoi(s)
+	return i
+}
