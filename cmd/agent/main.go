@@ -8,11 +8,11 @@ import (
 	"iprl-demo/internal/util"
 	"log"
 	"net"
-	"os"
 	"os/signal"
 	"syscall"
 
 	"golang.org/x/sync/errgroup"
+	"google.golang.org/grpc"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -54,23 +54,45 @@ func main() {
 
 	probingAgent := agent.NewAgentManager(spec)
 
-	ctx, cancel := context.WithCancel(context.Background())
+	// Setup context with signal handling
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer cancel()
+
 	g, ctx := errgroup.WithContext(ctx)
 
-	// Signal handler
+	// gRPC server
+	var grpcServer *grpc.Server
 	g.Go(func() error {
-		sigCh := make(chan os.Signal, 1)
-		signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
-		log.Printf("Received signal: %v", <-sigCh)
-		cancel()
+		lis, err := net.Listen("tcp", *address)
+		if err != nil {
+			return err
+		}
+
+		grpcServer = grpc.NewServer()
+		probingAgent.Register(grpcServer)
+
+		log.Printf("agent listening on %s", *address)
+		return grpcServer.Serve(lis)
+	})
+
+	// Graceful shutdown
+	g.Go(func() error {
+		<-ctx.Done()
+		if grpcServer != nil {
+			log.Println("Shutting down gRPC server...")
+			grpcServer.GracefulStop()
+		}
 		return nil
 	})
 
+	// Run orchestrator manager
 	g.Go(func() error {
 		return probingAgent.Run(ctx)
 	})
 
-	if err := g.Wait(); err != nil {
+	if err := g.Wait(); err != nil && err != context.Canceled {
 		log.Fatalf("Error: %v", err)
 	}
+
+	log.Println("agent shutdown complete")
 }

@@ -2,12 +2,16 @@ package orchestrator
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"io"
 	"log"
+	"os"
 	"sync"
 	"time"
 
 	"github.com/google/uuid"
+	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/emptypb"
 
@@ -164,22 +168,22 @@ func (m *OrchestratorManager) UnregisterComponent(ctx context.Context, req *pb.U
 }
 
 // EnqueueDirective adds a probing directive to the distribution queue.
-func (m *OrchestratorManager) EnqueueDirective(ctx context.Context, directive *pb.ProbingDirective) error {
+func (m *OrchestratorManager) EnqueueDirective(ctx context.Context, directive *pb.ProbingDirective) {
 	select {
 	case <-ctx.Done():
-		return ctx.Err()
+		return
 	case m.directiveCh <- directive:
-		return nil
+		return
 	}
 }
 
 // EnqueueElement adds a forwarding information element to the collection queue.
-func (m *OrchestratorManager) EnqueueElement(ctx context.Context, element *pb.ForwardingInfoElement) error {
+func (m *OrchestratorManager) EnqueueElement(ctx context.Context, element *pb.ForwardingInfoElement) {
 	select {
 	case <-ctx.Done():
-		return ctx.Err()
+		return
 	case m.elementCh <- element:
-		return nil
+		return
 	}
 }
 
@@ -200,64 +204,63 @@ func (m *OrchestratorManager) PushProbingDirectives(stream grpc.ClientStreamingS
 	ctx := stream.Context()
 
 	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		default:
+		}
+
 		directive, err := stream.Recv()
 		if err != nil {
-			if err.Error() == "EOF" {
+			if err == io.EOF {
 				return nil
 			}
 			return err
 		}
 
-		if err := m.EnqueueDirective(ctx, directive); err != nil {
-			log.Printf("failed to enqueue directive: %v", err)
-		}
+		m.EnqueueDirective(ctx, directive)
 	}
 }
 
 // PushForwardingInfoElements handles bidirectional streaming with agents.
 // Receives elements from agents and sends directives to them.
 func (m *OrchestratorManager) PushForwardingInfoElements(stream grpc.BidiStreamingServer[pb.ForwardingInfoElement, pb.ProbingDirective]) error {
-	ctx := stream.Context()
+	ctx, cancel := context.WithCancel(stream.Context())
+	defer cancel()
 
-	errCh := make(chan error, 2)
+	g, ctx := errgroup.WithContext(ctx)
 
 	// Receive elements from agent
-	go func() {
+	g.Go(func() error {
+		defer cancel() // Cancel context when receive ends
 		for {
 			element, err := stream.Recv()
 			if err != nil {
-				errCh <- err
-				return
+				if err == io.EOF {
+					return nil
+				}
+				return err
 			}
 
-			if err := m.EnqueueElement(ctx, element); err != nil {
-				log.Printf("failed to enqueue element: %v", err)
-			}
+			m.EnqueueElement(ctx, element)
 		}
-	}()
+	})
 
 	// Send directives to agent
-	go func() {
+	g.Go(func() error {
 		for {
 			select {
 			case <-ctx.Done():
-				errCh <- ctx.Err()
-				return
+				return nil // Exit cleanly on context cancellation
 			case directive := <-m.directiveCh:
 				if err := stream.Send(directive); err != nil {
-					errCh <- err
-					return
+					return err
 				}
 			}
 		}
-	}()
+	})
 
-	// Wait for first error
-	err := <-errCh
-	if err != nil && err.Error() != "EOF" {
-		return err
-	}
-	return nil
+	return g.Wait()
 }
 
 // PullForwardingInfoElements streams collected elements to subscribers.
@@ -282,12 +285,13 @@ func (m *OrchestratorManager) Run(ctx context.Context) error {
 
 	// Start background tasks
 	go m.runNotificationLoop(ctx)
+	go m.runStreamToStdout(ctx)
 
 	// Wait for context cancellation
 	<-ctx.Done()
 
 	log.Println("orchestrator stopped")
-	return ctx.Err()
+	return nil
 }
 
 // runNotificationLoop periodically notifies components of status changes.
@@ -371,6 +375,24 @@ func (m *OrchestratorManager) notifyChangedGenerators(ctx context.Context) {
 
 			log.Printf("notified generator %s", status.Uuid)
 		}(spec, status)
+	}
+}
+
+func (m *OrchestratorManager) runStreamToStdout(ctx context.Context) {
+	encoder := json.NewEncoder(os.Stdout)
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case element, ok := <-m.elementCh:
+			if !ok {
+				return
+			}
+			if err := encoder.Encode(element); err != nil {
+				log.Printf("failed to encode element to stdout: %v", err)
+			}
+		}
 	}
 }
 

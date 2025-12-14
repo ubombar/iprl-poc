@@ -3,6 +3,7 @@ package generator
 import (
 	"context"
 	"log"
+	"net"
 	"sync"
 	"time"
 
@@ -240,6 +241,17 @@ func (m *GeneratorManager) streamDirectives(ctx context.Context, stream grpc.Cli
 // generateDirective generates a single probing directive.
 // Override this method in a subtype for custom generation logic.
 func (m *GeneratorManager) generateDirective() *pb.ProbingDirective {
-	// TODO: Implement actual directive generation logic
-	return nil
+	return &pb.ProbingDirective{
+		VantagePointName:   "hello bro",
+		DestinationAddress: net.ParseIP("1.2.3.4"),
+		IpVersion:          pb.IPVersion_IP_VERSION_4,
+		Protocol:           pb.Protocol_PROTOCOL_ICMP,
+		NearTtl:            4,
+		DestinationPort:    0,
+	}
+}
+
+// Register registers this server with a gRPC server.
+func (m *GeneratorManager) Register(server *grpc.Server) {
+	pb.RegisterProbingDirectiveGeneratorInterfaceServer(server, m)
 }

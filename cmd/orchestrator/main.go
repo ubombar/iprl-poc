@@ -3,11 +3,12 @@ package main
 import (
 	"context"
 	"flag"
+	"net"
+	"time"
 
 	"iprl-demo/internal/components/orchestrator"
 	pb "iprl-demo/internal/gen/proto"
 	"log"
-	"net"
 	"os/signal"
 	"syscall"
 
@@ -48,30 +49,43 @@ func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
 
+	// Create listener first
+	lis, err := net.Listen("tcp", *address)
+	if err != nil {
+		log.Fatalf("failed to listen: %v", err)
+	}
+
+	grpcServer := grpc.NewServer()
+	orchestratorManager.Register(grpcServer)
+
 	g, ctx := errgroup.WithContext(ctx)
 
 	// gRPC server
-	var grpcServer *grpc.Server
 	g.Go(func() error {
-		lis, err := net.Listen("tcp", *address)
-		if err != nil {
-			return err
-		}
-
-		grpcServer = grpc.NewServer()
-		orchestratorManager.Register(grpcServer)
-
 		log.Printf("Orchestrator listening on %s", *address)
 		return grpcServer.Serve(lis)
 	})
 
-	// Graceful shutdown
+	// Graceful shutdown - this is the key part
 	g.Go(func() error {
 		<-ctx.Done()
-		if grpcServer != nil {
-			log.Println("Shutting down gRPC server...")
+		log.Println("Shutting down gRPC server...")
+
+		// Use a timeout for graceful stop
+		stopped := make(chan struct{})
+		go func() {
 			grpcServer.GracefulStop()
+			close(stopped)
+		}()
+
+		select {
+		case <-stopped:
+			log.Println("gRPC server stopped gracefully")
+		case <-time.After(4 * time.Second):
+			log.Println("gRPC server force stopping...")
+			grpcServer.Stop()
 		}
+
 		return nil
 	})
 
@@ -84,5 +98,5 @@ func main() {
 		log.Fatalf("Error: %v", err)
 	}
 
-	log.Println("Orchestrator shutdown complete")
+	log.Println("orchestrator shutdown complete")
 }

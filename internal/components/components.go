@@ -72,9 +72,9 @@ type OrchestratorManager interface {
 
 	// EnqueueDirective adds a probing directive to the distribution queue.
 	// Called by generators to submit directives for routing to agents.
-	EnqueueDirective(ctx context.Context, directive *pb.ProbingDirective) error
+	EnqueueDirective(ctx context.Context, directive *pb.ProbingDirective)
 
 	// EnqueueElement adds a forwarding information element to the collection queue.
 	// Called by agents to submit probe results.
-	EnqueueElement(ctx context.Context, element *pb.ForwardingInfoElement) error
+	EnqueueElement(ctx context.Context, element *pb.ForwardingInfoElement)
 }

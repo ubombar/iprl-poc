@@ -199,6 +199,7 @@ func (m *AgentManager) Run(ctx context.Context) error {
 
 // streamElements receives directives and sends back forwarding info elements.
 func (m *AgentManager) streamElements(ctx context.Context, stream grpc.BidiStreamingClient[pb.ForwardingInfoElement, pb.ProbingDirective]) {
+	log.Println("started streaming elements")
 	for {
 		select {
 		case <-ctx.Done():
