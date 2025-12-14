@@ -105,6 +105,9 @@ func (m *AgentManager) Run(parent context.Context) error {
 
 	g.Go(func() error {
 		<-ctx.Done()
+
+		m.leaveCluster()
+
 		m.Close()
 		return nil
 	})
@@ -113,6 +116,38 @@ func (m *AgentManager) Run(parent context.Context) error {
 		return err
 	}
 	return nil
+}
+
+func (m *AgentManager) leaveCluster() {
+	status := m.GetStatus()
+	if status == nil {
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	spec := m.GetSpec()
+	if spec == nil {
+		return
+	}
+
+	client, conn, err := clients.NewInsecureOrchestratorClient(spec.OrchestratorAddress)
+	if err != nil {
+		log.Printf("leave: failed to connect: %v", err)
+		return
+	}
+	defer conn.Close()
+
+	_, err = client.Leave(ctx, &pb.LeaveRequest{
+		Uuid: status.Uuid,
+	})
+	if err != nil {
+		log.Printf("leave: failed: %v", err)
+		return
+	}
+
+	log.Printf("agent %s left the cluster", status.Uuid)
 }
 
 func (m *AgentManager) runProber(ctx context.Context) error {

@@ -67,8 +67,10 @@ func (m *MockDirectiveGenerator) Run(ctx context.Context) error {
 
 			select {
 			case m.outCh <- dir:
+
 			case <-ctx.Done():
 				return nil
+
 			case <-m.closeCh:
 				return nil
 			}

@@ -108,6 +108,9 @@ func (m *GeneratorManager) Run(parent context.Context) error {
 
 	g.Go(func() error {
 		<-ctx.Done()
+
+		m.leaveCluster()
+
 		m.Close()
 		return nil
 	})
@@ -116,6 +119,38 @@ func (m *GeneratorManager) Run(parent context.Context) error {
 		return err
 	}
 	return nil
+}
+
+func (m *GeneratorManager) leaveCluster() {
+	status := m.GetStatus()
+	if status == nil {
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	spec := m.GetSpec()
+	if spec == nil {
+		return
+	}
+
+	client, conn, err := clients.NewInsecureOrchestratorClient(spec.OrchestratorAddress)
+	if err != nil {
+		log.Printf("leave: failed to connect: %v", err)
+		return
+	}
+	defer conn.Close()
+
+	_, err = client.Leave(ctx, &pb.LeaveRequest{
+		Uuid: status.Uuid,
+	})
+	if err != nil {
+		log.Printf("leave: failed: %v", err)
+		return
+	}
+
+	log.Printf("generator %s left the cluster", status.Uuid)
 }
 
 func (m *GeneratorManager) runDirectiveGenerator(ctx context.Context) error {
@@ -175,7 +210,7 @@ func (m *GeneratorManager) runDirectiveStream(ctx context.Context) error {
 	return backoff.Retry(func() error {
 		// Exit cleanly on shutdown
 		if err := ctx.Err(); err != nil {
-			return backoff.Permanent(err)
+			return nil
 		}
 
 		spec := m.GetSpec()
@@ -239,10 +274,16 @@ func (m *GeneratorManager) streamDirectives(ctx context.Context, stream grpc.Cli
 
 			log.Printf("generator cannot generate directives either rate is 0 or there are no agents to select, retrying in 5 seconds")
 
-			if err := util.SleepWithContext(ctx, 5*time.Second); err != nil {
-				return err
+			select {
+			case <-ctx.Done():
+				return nil
+
+			case <-m.ctx.Done():
+				return nil
+
+			case <-time.After(5 * time.Second):
+				continue
 			}
-			continue
 		}
 
 		select {
