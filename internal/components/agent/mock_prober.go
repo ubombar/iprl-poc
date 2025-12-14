@@ -2,13 +2,13 @@ package agent
 
 import (
 	"context"
-	"io"
 	"math/rand"
 	"net"
 	"sync"
 	"sync/atomic"
 	"time"
 
+	"iprl-demo/internal/components"
 	pb "iprl-demo/internal/gen/proto"
 
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -22,19 +22,21 @@ type MockProber struct {
 	closeCh chan struct{}
 	rng     *rand.Rand
 
-	vp *pb.VantagePoint
+	agentManager components.AgentManager
 
 	once sync.Once
 }
 
+var _ components.Prober = (*MockProber)(nil)
+
 // NewMockProber creates a mock prober with buffered channels.
-func NewMockProber(buffer int, seed int64, vp *pb.VantagePoint) (*MockProber, error) {
+func NewMockProber(buffer int, seed int64, agentManager components.AgentManager) (*MockProber, error) {
 	return &MockProber{
-		inCh:    make(chan *pb.ProbingDirective, buffer),
-		outCh:   make(chan *pb.ForwardingInfoElement, buffer),
-		closeCh: make(chan struct{}),
-		rng:     rand.New(rand.NewSource(seed)),
-		vp:      vp,
+		inCh:         make(chan *pb.ProbingDirective, buffer),
+		outCh:        make(chan *pb.ForwardingInfoElement, buffer),
+		closeCh:      make(chan struct{}),
+		rng:          rand.New(rand.NewSource(seed)),
+		agentManager: agentManager,
 	}, nil
 }
 
@@ -46,6 +48,11 @@ func (m *MockProber) PushChannel() chan<- *pb.ProbingDirective {
 // PullChannel implements Puller.
 func (m *MockProber) PullChannel() <-chan *pb.ForwardingInfoElement {
 	return m.outCh
+}
+
+// Save the reference of the manager to access the spec and status if necessary.
+func (m *MockProber) Register(g components.AgentManager) {
+	m.agentManager = g
 }
 
 // Run implements Runner.
@@ -69,6 +76,9 @@ func (m *MockProber) Run(ctx context.Context) error {
 			time.Sleep(10 * time.Millisecond)
 
 			elem := m.generateElement(dir)
+			if elem == nil {
+				continue
+			}
 
 			select {
 			case m.outCh <- elem:
@@ -95,13 +105,9 @@ func (m *MockProber) Close() error {
 	return nil
 }
 
-// Ensure interface compliance at compile time
-var (
-	_ io.Closer = (*MockProber)(nil)
-)
-
 // This is the core generation logic.
 func (m *MockProber) generateElement(directive *pb.ProbingDirective) *pb.ForwardingInfoElement {
+	spec := m.agentManager.GetSpec()
 	now := time.Now()
 
 	// Simulate RTT (10-100ms)
@@ -129,7 +135,7 @@ func (m *MockProber) generateElement(directive *pb.ProbingDirective) *pb.Forward
 	farRTTDuration := nearRTTDuration + time.Duration(5+m.rng.Intn(20))*time.Millisecond
 
 	element := &pb.ForwardingInfoElement{
-		VantagePoint:     m.vp,
+		VantagePoint:     spec.VantagePoint,
 		FlowId:           m.rng.Uint64(),
 		NearTtl:          nearTTL,
 		NearReplyAddress: nearReplyAddr,

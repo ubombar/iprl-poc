@@ -80,6 +80,7 @@ func (m *AgentManager) SetStatus(status *pb.ProbingAgentStatus) {
 // It connects to the orchestrator, registers itself, and streams elements.
 // It blocks until the context is cancelled or max retries are exceeded.
 func (m *AgentManager) Run(ctx context.Context) error {
+	m.prober.Register(m)
 
 	// try to unregister before shutdown
 	defer func() {
@@ -192,7 +193,7 @@ func (m *AgentManager) Run(ctx context.Context) error {
 				continue
 			}
 
-			// Stream directives until error or context cancellation
+			// Stream until error or context cancellation
 			m.streamElements(ctx, stream)
 
 			// Close the stream
@@ -218,9 +219,6 @@ func (m *AgentManager) Run(ctx context.Context) error {
 }
 
 // streamElements receives directives and sends back forwarding info elements.
-//
-// We are doing this in the same Go routine. This is for simplicity.
-// Normally this should be in a separate Go routine and run concurrently.
 func (m *AgentManager) streamElements(ctx context.Context, stream grpc.BidiStreamingClient[pb.ForwardingInfoElement, pb.ProbingDirective]) {
 	g, ctx := errgroup.WithContext(ctx)
 
@@ -246,7 +244,7 @@ func (m *AgentManager) streamElements(ctx context.Context, stream grpc.BidiStrea
 	g.Go(func() error {
 		for {
 			select {
-			case elem, ok := <-m.prober.PullChannel():
+			case element, ok := <-m.prober.PullChannel():
 				if !ok {
 					return nil
 				}
@@ -257,7 +255,7 @@ func (m *AgentManager) streamElements(ctx context.Context, stream grpc.BidiStrea
 					return err
 				}
 
-				if err := stream.Send(elem); err != nil {
+				if err := stream.Send(element); err != nil {
 					return err
 				}
 
@@ -268,7 +266,7 @@ func (m *AgentManager) streamElements(ctx context.Context, stream grpc.BidiStrea
 	})
 
 	// Wait for all goroutines
-	if err := g.Wait(); err != nil && err != context.Canceled {
+	if err := g.Wait(); err != nil {
 		log.Printf("there was an error on the probing method: %v", err)
 		return
 	}

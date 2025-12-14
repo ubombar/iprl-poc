@@ -6,7 +6,7 @@ import (
 	"errors"
 	"io"
 	"log"
-	"os"
+	"net/http"
 	"sync"
 	"time"
 
@@ -15,6 +15,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/emptypb"
 
+	"iprl-demo/internal/api"
 	"iprl-demo/internal/clients"
 	"iprl-demo/internal/components"
 	pb "iprl-demo/internal/gen/proto"
@@ -47,6 +48,9 @@ type OrchestratorManager struct {
 	// Queues for directives and elements
 	directiveCh chan *pb.ProbingDirective
 	elementCh   chan *pb.ForwardingInfoElement
+
+	// HTTP streaming clients
+	clients map[string]chan *pb.ForwardingInfoElement
 }
 
 // NewOrchestratorManager creates a new OrchestratorManager with the given specification.
@@ -59,6 +63,7 @@ func NewOrchestratorManager(spec *pb.ProbingOrchestratorSpec) *OrchestratorManag
 		store:       newComponentStore(),
 		directiveCh: make(chan *pb.ProbingDirective, spec.DirectiveBufferLength),
 		elementCh:   make(chan *pb.ForwardingInfoElement, spec.ElementBufferLength),
+		clients:     make(map[string]chan *pb.ForwardingInfoElement, 10),
 	}
 }
 
@@ -123,12 +128,12 @@ func (m *OrchestratorManager) Join(ctx context.Context, req *pb.JoinRequest) (*p
 
 func (m *OrchestratorManager) Leave(ctx context.Context, req *pb.LeaveRequest) (*emptypb.Empty, error) {
 	if err := m.store.RemoveAgent(req.Uuid); err == nil {
-		log.Printf("unregistered agent with uuid=%s", req.Uuid)
+		log.Printf("agent with uuid=%s left", req.Uuid)
 		return &emptypb.Empty{}, nil
 	}
 
 	if err := m.store.RemoveGenerator(req.Uuid); err == nil {
-		log.Printf("unregistered generator with uuid=%s", req.Uuid)
+		log.Printf("generator with uuid=%s left", req.Uuid)
 		return &emptypb.Empty{}, nil
 	}
 
@@ -148,7 +153,7 @@ func (m *OrchestratorManager) joinAgent(spec *pb.ProbingAgentSpec) (*pb.JoinResp
 		return nil, err
 	}
 
-	log.Printf("registered agent with uuid=%s", id)
+	log.Printf("agent with uuid=%s joined", id)
 
 	return &pb.JoinResponse{
 		Status: &pb.JoinResponse_ProbingAgentStatus{
@@ -174,7 +179,7 @@ func (m *OrchestratorManager) joinGenerator(spec *pb.ProbingDirectiveGeneratorSp
 		return nil, err
 	}
 
-	log.Printf("registered generator with uuid=%s", id)
+	log.Printf("generator with uuid=%s joined", id)
 
 	return &pb.JoinResponse{
 		Status: &pb.JoinResponse_ProbingDirectiveGeneratorStatus{
@@ -275,7 +280,7 @@ func (m *OrchestratorManager) Run(ctx context.Context) error {
 
 	// Start background tasks
 	go m.runNotificationLoop(ctx)
-	go m.runStreamToStdout(ctx)
+	go m.runFanout(ctx)
 
 	// Wait for context cancellation
 	<-ctx.Done()
@@ -362,20 +367,29 @@ func (m *OrchestratorManager) notifyChangedGenerators(ctx context.Context) {
 	}
 }
 
-func (m *OrchestratorManager) runStreamToStdout(ctx context.Context) {
-	encoder := json.NewEncoder(os.Stdout)
-
+func (m *OrchestratorManager) runFanout(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		case element, ok := <-m.elementCh:
+
+		case elem, ok := <-m.elementCh:
 			if !ok {
 				return
 			}
-			if err := encoder.Encode(element); err != nil {
-				log.Printf("failed to encode element to stdout: %v", err)
+
+			m.mu.RLock()
+			for chUuid, ch := range m.clients {
+				select {
+				case ch <- elem:
+					log.Printf("delivered: %v\n", chUuid)
+					// delivered
+				default:
+					log.Printf("dropped: %v\n", chUuid)
+					// client is slow → drop
+				}
 			}
+			m.mu.RUnlock()
 		}
 	}
 }
@@ -389,4 +403,62 @@ func (m *OrchestratorManager) Register(server *grpc.Server) {
 func (m *OrchestratorManager) Close() {
 	close(m.directiveCh)
 	close(m.elementCh)
+}
+
+// Stream implements HTTPStreamer interface for SSE streaming of ForwardingInfoElements
+func (m *OrchestratorManager) Stream(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	// ---- HTTP sanity checks ----
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		http.Error(w, "streaming unsupported", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+
+	// ---- Register client ----
+	clientID := uuid.NewString()
+	clientCh := make(chan *pb.ForwardingInfoElement, 128)
+
+	m.mu.Lock()
+	m.clients[clientID] = clientCh
+	m.mu.Unlock()
+
+	defer func() {
+		m.mu.Lock()
+		delete(m.clients, clientID)
+		close(clientCh)
+		m.mu.Unlock()
+	}()
+
+	// ---- Stream loop ----
+	enc := json.NewEncoder(w)
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+
+		case elem, ok := <-clientCh:
+			if !ok {
+				return
+			}
+
+			view := api.FromProto(elem)
+			if view == nil {
+				continue
+			}
+
+			if err := enc.Encode(view); err != nil {
+				// client disconnected or write error
+				return
+			}
+
+			flusher.Flush()
+		}
+	}
 }

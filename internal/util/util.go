@@ -3,14 +3,17 @@ package util
 import (
 	"context"
 	pb "iprl-demo/internal/gen/proto"
+	"net"
 	"strings"
 	"time"
+
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func SleepWithContext(ctx context.Context, d time.Duration) error {
 	select {
 	case <-ctx.Done():
-		return ctx.Err()
+		return nil
 	case <-time.After(d):
 		return nil
 	}
@@ -55,4 +58,26 @@ func ParseProvider(s string) pb.VantagePointProvider {
 	default:
 		return pb.VantagePointProvider_VANTAGE_POINT_PROVIDER_UNKNOWN
 	}
+}
+
+func IpBytesToString(b []byte) string {
+	if len(b) == 0 {
+		return ""
+	}
+
+	ip := net.IP(b)
+
+	// Normalize IPv4-in-IPv6
+	if v4 := ip.To4(); v4 != nil {
+		return v4.String()
+	}
+
+	return ip.String()
+}
+
+func TSToTime(ts *timestamppb.Timestamp) time.Time {
+	if ts == nil {
+		return time.Time{}
+	}
+	return ts.AsTime()
 }

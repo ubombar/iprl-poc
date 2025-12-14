@@ -24,13 +24,14 @@ var (
 
 func main() {
 	var (
-		address   = flag.String("address", ":50049", "gRPC listen address")
-		poAddr    = flag.String("po-addr", "localhost:50050", "Probing Orchestrator address")
-		seed      = flag.Int64("seed", 42, "Random seed")
-		minTTL    = flag.Uint("min-ttl", 1, "Minimum TTL")
-		maxTTL    = flag.Uint("max-ttl", 32, "Maximum TTL")
-		retries   = flag.Uint("retries", 3, "Number of retries")
-		protocols = flag.String("protocols", "icmp,udp", "Comma-separated list of protocols (icmp, tcp, udp, dccp, icmpv6)")
+		address          = flag.String("address", ":50049", "gRPC listen address")
+		poAddr           = flag.String("po-addr", "localhost:50050", "Probing Orchestrator address")
+		minTTL           = flag.Uint("min-ttl", 1, "Minimum TTL")
+		maxTTL           = flag.Uint("max-ttl", 32, "Maximum TTL")
+		retries          = flag.Uint("retries", 3, "Number of retries")
+		protocols        = flag.String("protocols", "icmp,udp", "Comma-separated list of protocols (icmp, tcp, udp, dccp, icmpv6)")
+		seed             = flag.Uint("seed", 42, "Seed for the mock generator")
+		mockProberBuffer = flag.Uint("mock-buffer", 100, "Buffer length of the mock generator")
 	)
 	flag.Parse()
 
@@ -44,10 +45,16 @@ func main() {
 		Protocols:           util.ParseProtocols(*protocols),
 		MinTtl:              uint32(*minTTL),
 		MaxTtl:              uint32(*maxTTL),
-		Seed:                *seed,
+		Seed:                int64(*seed),
 	}
 
-	probingGenerator := generator.NewGeneratorManager(spec)
+	directiveGenerator, err := generator.NewMockDirectiveGenerator(int(*mockProberBuffer), int64(*seed), nil)
+	if err != nil {
+		log.Printf("cannot create mock directive generator: %v", err)
+		return
+	}
+
+	probingGenerator := generator.NewGeneratorManager(spec, directiveGenerator)
 
 	// Setup context with signal handling
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)

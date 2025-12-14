@@ -148,7 +148,6 @@ message ProbingDirective {
   Protocol                  protocol = 4;
   optional HeaderParameters header_parameters = 5;
   uint32                    near_ttl = 6;
-  uint32                    destination_port = 7;
 }
 
 // === Forwarding Info Element ===

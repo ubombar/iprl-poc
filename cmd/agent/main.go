@@ -54,7 +54,7 @@ func main() {
 		NumRetries:            uint32(0), // for now it is hardcoded.
 	}
 
-	prober, err := agent.NewMockProber(int(*mockProberBuffer), int64(*seed), spec.VantagePoint)
+	prober, err := agent.NewMockProber(int(*mockProberBuffer), int64(*seed), nil)
 	if err != nil {
 		log.Printf("cannot create mock prober: %v", err)
 		return

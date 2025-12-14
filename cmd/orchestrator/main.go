@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"net"
+	"net/http"
 	"time"
 
 	"iprl-demo/internal/components/orchestrator"
@@ -25,18 +26,19 @@ var (
 
 func main() {
 	var (
-		address       = flag.String("address", ":50050", "gRPC listen address")
-		rate          = flag.Uint("rate", 1, "Default global probing rate cap per agent")
-		retries       = flag.Uint("retries", 3, "Number of retries")
-		directiveBuff = flag.Uint("directive-buffer", 10000, "Directive buffer length")
-		elementBuff   = flag.Uint("element-buffer", 10000, "Element buffer length")
+		grpcAddr      = flag.String("grpc-addr", ":50050", "grpc listen address")
+		httpAddr      = flag.String("http-addr", ":80", "http listen address")
+		rate          = flag.Uint("rate", 1, "default global probing rate cap per agent")
+		retries       = flag.Uint("retries", 3, "number of retries")
+		directiveBuff = flag.Uint("directive-buffer", 10000, "directive buffer length")
+		elementBuff   = flag.Uint("element-buffer", 10000, "element buffer length")
 	)
 	flag.Parse()
 
 	spec := &pb.ProbingOrchestratorSpec{
 		SoftwareVersion:             Version,
 		InterfaceVersion:            Version,
-		InterfaceAddr:               *address,
+		InterfaceAddr:               *grpcAddr,
 		NumRetries:                  uint32(*retries),
 		DefaultGlobalProbingRateCap: uint32(*rate),
 		DirectiveBufferLength:       uint32(*directiveBuff),
@@ -45,46 +47,60 @@ func main() {
 
 	orchestratorManager := orchestrator.NewOrchestratorManager(spec)
 
-	// Setup context with signal handling
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
 
-	// Create listener first
-	lis, err := net.Listen("tcp", *address)
-	if err != nil {
-		log.Fatalf("failed to listen: %v", err)
-	}
+	g, ctx := errgroup.WithContext(ctx)
 
+	// Create servers
 	grpcServer := grpc.NewServer()
 	orchestratorManager.Register(grpcServer)
 
-	g, ctx := errgroup.WithContext(ctx)
+	mux := http.NewServeMux()
+	mux.HandleFunc("/stream", orchestratorManager.Stream)
+	httpServer := &http.Server{
+		Addr:    *httpAddr,
+		Handler: mux,
+	}
 
 	// gRPC server
 	g.Go(func() error {
-		log.Printf("Orchestrator listening on %s", *address)
+		lis, err := net.Listen("tcp", *grpcAddr)
+		if err != nil {
+			return err
+		}
+		log.Printf("gRPC server listening on %s", *grpcAddr)
 		return grpcServer.Serve(lis)
 	})
 
-	// Graceful shutdown - this is the key part
+	// HTTP server
+	g.Go(func() error {
+		log.Printf("HTTP server listening on %s", *httpAddr)
+		err := httpServer.ListenAndServe()
+		if err == http.ErrServerClosed {
+			return nil
+		}
+		return err
+	})
+
+	// Graceful shutdown
 	g.Go(func() error {
 		<-ctx.Done()
-		log.Println("Shutting down gRPC server...")
+		log.Println("Shutting down servers...")
 
-		// Use a timeout for graceful stop
-		stopped := make(chan struct{})
-		go func() {
-			grpcServer.GracefulStop()
-			close(stopped)
-		}()
+		// Shutdown HTTP server with timeout
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer shutdownCancel()
 
-		select {
-		case <-stopped:
-			log.Println("gRPC server stopped gracefully")
-		case <-time.After(1 * time.Second): // TODO: The graceful shutdown never happens this is a bug!
-			log.Println("gRPC server force stopping...")
-			grpcServer.Stop()
+		if err := httpServer.Shutdown(shutdownCtx); err != nil {
+			log.Printf("HTTP server shutdown error: %v", err)
+		} else {
+			log.Println("HTTP server stopped")
 		}
+
+		// Shutdown gRPC server
+		grpcServer.GracefulStop()
+		log.Println("gRPC server stopped")
 
 		return nil
 	})
@@ -98,5 +114,5 @@ func main() {
 		log.Fatalf("Error: %v", err)
 	}
 
-	log.Println("orchestrator shutdown complete")
+	log.Println("Shutdown complete")
 }
