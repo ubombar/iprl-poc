@@ -234,6 +234,12 @@ func (m *OrchestratorManager) PushForwardingInfoElements(stream grpc.BidiStreami
 	g.Go(func() error {
 		defer cancel() // Cancel context when receive ends
 		for {
+			select {
+			case <-ctx.Done():
+				return nil
+			default:
+			}
+
 			element, err := stream.Recv()
 			if err != nil {
 				if err == io.EOF {

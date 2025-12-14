@@ -27,7 +27,6 @@ func main() {
 		address   = flag.String("address", ":50049", "gRPC listen address")
 		poAddr    = flag.String("po-addr", "localhost:50050", "Probing Orchestrator address")
 		seed      = flag.Int64("seed", 42, "Random seed")
-		rate      = flag.Uint("rate", 1, "Probe generation rate per second per agent")
 		minTTL    = flag.Uint("min-ttl", 1, "Minimum TTL")
 		maxTTL    = flag.Uint("max-ttl", 32, "Maximum TTL")
 		retries   = flag.Uint("retries", 3, "Number of retries")
@@ -37,16 +36,15 @@ func main() {
 
 	// For now this is mock, in the future some of these values should be retrieved.
 	spec := &pb.ProbingDirectiveGeneratorSpec{
-		SoftwareVersion:             Version,
-		InterfaceVersion:            Version,
-		InterfaceAddr:               *address,
-		OrchestratorAddress:         *poAddr,
-		NumRetries:                  uint32(*retries),
-		Protocols:                   util.ParseProtocols(*protocols),
-		MinTtl:                      uint32(*minTTL),
-		MaxTtl:                      uint32(*maxTTL),
-		DefaultGlobalProbingRateCap: uint32(*rate),
-		Seed:                        *seed,
+		SoftwareVersion:     Version,
+		InterfaceVersion:    Version,
+		InterfaceAddr:       *address,
+		OrchestratorAddress: *poAddr,
+		NumRetries:          uint32(*retries),
+		Protocols:           util.ParseProtocols(*protocols),
+		MinTtl:              uint32(*minTTL),
+		MaxTtl:              uint32(*maxTTL),
+		Seed:                *seed,
 	}
 
 	probingGenerator := generator.NewGeneratorManager(spec)

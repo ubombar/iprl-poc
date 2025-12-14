@@ -26,7 +26,7 @@ var (
 func main() {
 	var (
 		address       = flag.String("address", ":50050", "gRPC listen address")
-		rate          = flag.Uint("rate", 1000, "Default global probing rate cap per agent")
+		rate          = flag.Uint("rate", 1, "Default global probing rate cap per agent")
 		retries       = flag.Uint("retries", 3, "Number of retries")
 		directiveBuff = flag.Uint("directive-buffer", 10000, "Directive buffer length")
 		elementBuff   = flag.Uint("element-buffer", 10000, "Element buffer length")
