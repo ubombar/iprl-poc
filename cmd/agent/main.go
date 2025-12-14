@@ -33,6 +33,8 @@ func main() {
 		vpASN    = flag.Uint("vp-asn", 0, "Vantage point ASN")
 		provider = flag.String("vp-provider", "unknown", "Vantage point provider (gcp, aws, edgenet, unknown)")
 		// retries  = flag.Uint("retries", 0, "Number of retries")
+		seed             = flag.Uint("seed", 42, "Seed for the mock prober")
+		mockProberBuffer = flag.Uint("mock-buffer", 100, "Buffer length of the mock prober")
 	)
 	flag.Parse()
 
@@ -52,7 +54,13 @@ func main() {
 		NumRetries:            uint32(0), // for now it is hardcoded.
 	}
 
-	probingAgent := agent.NewAgentManager(spec)
+	prober, err := agent.NewMockProber(int(*mockProberBuffer), int64(*seed), spec.VantagePoint)
+	if err != nil {
+		log.Printf("cannot create mock prober: %v", err)
+		return
+	}
+
+	probingAgent := agent.NewAgentManager(spec, prober)
 
 	// Setup context with signal handling
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)

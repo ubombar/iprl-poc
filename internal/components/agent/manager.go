@@ -3,10 +3,10 @@ package agent
 import (
 	"context"
 	"log"
-	"net"
 	"sync"
 	"time"
 
+	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/emptypb"
 
@@ -28,13 +28,16 @@ type AgentManager struct {
 
 	currentSpec   *pb.ProbingAgentSpec
 	currentStatus *pb.ProbingAgentStatus
+
+	prober components.Prober
 }
 
 // NewAgentManager creates a new AgentManager with the given specification.
-func NewAgentManager(spec *pb.ProbingAgentSpec) *AgentManager {
+func NewAgentManager(spec *pb.ProbingAgentSpec, prober components.Prober) *AgentManager {
 	return &AgentManager{
 		currentSpec:   spec,
 		currentStatus: nil,
+		prober:        prober,
 	}
 }
 
@@ -77,10 +80,11 @@ func (m *AgentManager) SetStatus(status *pb.ProbingAgentStatus) {
 // It connects to the orchestrator, registers itself, and streams elements.
 // It blocks until the context is cancelled or max retries are exceeded.
 func (m *AgentManager) Run(ctx context.Context) error {
-	numRetries := uint32(0)
 
 	// try to unregister before shutdown
 	defer func() {
+		m.prober.Close()
+
 		status := m.GetStatus()
 		if status == nil {
 			return
@@ -108,45 +112,79 @@ func (m *AgentManager) Run(ctx context.Context) error {
 		log.Printf("agent with uuid=%s successfully left the cluster", status.Uuid)
 	}()
 
-	for {
-		// Check if max retries exceeded
-		spec := m.GetSpec()
-		if spec.NumRetries != 0 && numRetries > spec.NumRetries {
-			log.Println("max number of retries exceeded, exiting")
-			return nil
-		}
+	g, ctx2 := errgroup.WithContext(ctx)
 
-		// Check if context is cancelled
-		select {
-		case <-ctx.Done():
-			return nil
-		default:
-		}
+	g.Go(func() error {
+		return m.prober.Run(ctx2)
+	})
 
-		// Try to connect to the orchestrator
-		client, conn, err := clients.NewInsecureOrchestratorClient(spec.OrchestratorAddress)
-		if err != nil {
-			numRetries++
-			log.Printf("failed to connect to the orchestrator (num_tries=%d): %v", numRetries, err)
-			if conn != nil {
-				conn.Close()
-			}
-			if err := util.SleepWithContext(ctx, 5*time.Second); err != nil {
+	g.Go(func() error {
+		numRetries := uint32(0)
+
+		for {
+			// Check if max retries exceeded
+			spec := m.GetSpec()
+			if spec.NumRetries != 0 && numRetries > spec.NumRetries {
+				log.Println("max number of retries exceeded, exiting")
 				return nil
 			}
-			continue
-		}
 
-		// If the uuid is not given by the orchestrator we need to register the ourselves.
-		if m.currentStatus == nil {
-			res, err := client.Join(ctx, &pb.JoinRequest{
-				Spec: &pb.JoinRequest_ProbingAgentSpec{
-					ProbingAgentSpec: spec,
-				},
-			})
+			// Check if context is cancelled
+			select {
+			case <-ctx.Done():
+				return nil
+			default:
+			}
+
+			// Try to connect to the orchestrator
+			client, conn, err := clients.NewInsecureOrchestratorClient(spec.OrchestratorAddress)
 			if err != nil {
 				numRetries++
-				log.Printf("failed to join to the cluster (num_tries=%d): %v", numRetries, err)
+				log.Printf("failed to connect to the orchestrator (num_tries=%d): %v", numRetries, err)
+				if conn != nil {
+					conn.Close()
+				}
+				if err := util.SleepWithContext(ctx, 5*time.Second); err != nil {
+					return nil
+				}
+				continue
+			}
+
+			// If the uuid is not given by the orchestrator we need to register the ourselves.
+			if m.currentStatus == nil {
+				res, err := client.Join(ctx, &pb.JoinRequest{
+					Spec: &pb.JoinRequest_ProbingAgentSpec{
+						ProbingAgentSpec: spec,
+					},
+				})
+				if err != nil {
+					numRetries++
+					log.Printf("failed to join to the cluster (num_tries=%d): %v", numRetries, err)
+					conn.Close()
+					if err := util.SleepWithContext(ctx, 5*time.Second); err != nil {
+						return nil
+					}
+					continue
+				}
+
+				// Validate response
+				if res.GetProbingAgentStatus() == nil {
+					log.Println("failed to get a valid status from the orchestrator, this is likely a bug on the orchestrator side")
+					conn.Close()
+					continue
+				}
+				m.SetStatus(res.GetProbingAgentStatus())
+				log.Printf("agent with uuid=%s successfully joined to the cluster", m.GetStatus().Uuid)
+			}
+
+			// Reset retries on successful registration
+			numRetries = 0
+
+			// Try to establish a stream
+			stream, err := client.PushForwardingInfoElements(ctx)
+			if err != nil {
+				numRetries++
+				log.Printf("failed to open stream with the orchestrator (num_tries=%d): %v", numRetries, err)
 				conn.Close()
 				if err := util.SleepWithContext(ctx, 5*time.Second); err != nil {
 					return nil
@@ -154,47 +192,29 @@ func (m *AgentManager) Run(ctx context.Context) error {
 				continue
 			}
 
-			// Validate response
-			if res.GetProbingAgentStatus() == nil {
-				log.Println("failed to get a valid status from the orchestrator, this is likely a bug on the orchestrator side")
-				conn.Close()
-				continue
+			// Stream directives until error or context cancellation
+			m.streamElements(ctx, stream)
+
+			// Close the stream
+			if err := stream.CloseSend(); err != nil {
+				numRetries++
+				log.Printf("failed to close stream with the orchestrator (num_tries=%d): %v", numRetries, err)
 			}
-			m.SetStatus(res.GetProbingAgentStatus())
-			log.Printf("agent with uuid=%s successfully joined to the cluster", m.GetStatus().Uuid)
-		}
 
-		// Reset retries on successful registration
-		numRetries = 0
-
-		// Try to establish a stream
-		stream, err := client.PushForwardingInfoElements(ctx)
-		if err != nil {
-			numRetries++
-			log.Printf("failed to open stream with the orchestrator (num_tries=%d): %v", numRetries, err)
 			conn.Close()
+
+			// Sleep before reconnecting
 			if err := util.SleepWithContext(ctx, 5*time.Second); err != nil {
 				return nil
 			}
-			continue
 		}
+	})
 
-		// Stream directives until error or context cancellation
-		m.streamElements(ctx, stream)
-
-		// Close the stream
-		if err := stream.CloseSend(); err != nil {
-			numRetries++
-			log.Printf("failed to close stream with the orchestrator (num_tries=%d): %v", numRetries, err)
-		}
-
-		conn.Close()
-
-		// Sleep before reconnecting
-		if err := util.SleepWithContext(ctx, 5*time.Second); err != nil {
-			return nil
-		}
+	if err := g.Wait(); err != nil {
+		log.Printf("there was an error on the run method: %v", err)
 	}
+
+	return nil
 }
 
 // streamElements receives directives and sends back forwarding info elements.
@@ -202,47 +222,55 @@ func (m *AgentManager) Run(ctx context.Context) error {
 // We are doing this in the same Go routine. This is for simplicity.
 // Normally this should be in a separate Go routine and run concurrently.
 func (m *AgentManager) streamElements(ctx context.Context, stream grpc.BidiStreamingClient[pb.ForwardingInfoElement, pb.ProbingDirective]) {
-	log.Println("started streaming elements")
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		default:
+	g, ctx := errgroup.WithContext(ctx)
+
+	// Receive and push to the push channel
+	g.Go(func() error {
+		defer m.prober.Close()
+
+		for {
+			directive, err := stream.Recv()
+			if err != nil {
+				return err
+			}
+
+			select {
+			case m.prober.PushChannel() <- directive:
+			case <-ctx.Done():
+				return nil
+			}
 		}
+	})
 
-		// Receive directive from orchestrator
-		directive, err := stream.Recv()
-		if err != nil {
-			log.Printf("error receiving directive: %v", err)
-			return
+	// Pull and send to the orchestrator
+	g.Go(func() error {
+		for {
+			select {
+			case elem, ok := <-m.prober.PullChannel():
+				if !ok {
+					return nil
+				}
+
+				// Rate limit here (correct place)
+				interval := time.Second / time.Duration(m.GetStatus().ProbingRateCap)
+				if err := util.SleepWithContext(ctx, interval); err != nil {
+					return err
+				}
+
+				if err := stream.Send(elem); err != nil {
+					return err
+				}
+
+			case <-ctx.Done():
+				return nil
+			}
 		}
+	})
 
-		// Process directive and generate element
-		element := m.probe(directive)
-
-		// Rate limit
-		interval := time.Second / time.Duration(m.GetStatus().ProbingRateCap)
-
-		if err := util.SleepWithContext(ctx, interval); err != nil {
-			return
-		}
-
-		// Send element back to orchestrator
-		if err := stream.Send(element); err != nil {
-			log.Printf("error sending element: %v", err)
-			return
-		}
-	}
-}
-
-// probe processes a single directive and returns the result.
-// Override this method in a subtype for custom probing logic.
-func (m *AgentManager) probe(directive *pb.ProbingDirective) *pb.ForwardingInfoElement {
-	return &pb.ForwardingInfoElement{ // TODO
-		VantagePoint:    m.currentSpec.VantagePoint,
-		NearTtl:         10,
-		SourceAddr:      net.ParseIP("1.1.1.1"),
-		DestinationAddr: directive.DestinationAddress,
+	// Wait for all goroutines
+	if err := g.Wait(); err != nil && err != context.Canceled {
+		log.Printf("there was an error on the probing method: %v", err)
+		return
 	}
 }
 

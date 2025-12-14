@@ -81,7 +81,7 @@ func main() {
 		select {
 		case <-stopped:
 			log.Println("gRPC server stopped gracefully")
-		case <-time.After(4 * time.Second):
+		case <-time.After(1 * time.Second): // TODO: The graceful shutdown never happens this is a bug!
 			log.Println("gRPC server force stopping...")
 			grpcServer.Stop()
 		}
