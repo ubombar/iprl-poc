@@ -96,7 +96,6 @@ message ProbingDirectiveGeneratorSpec {
   uint32                max_ttl = 8;
   string                orchestrator_address = 9;
   uint32                num_retries = 10;
-  uint32                default_global_probing_rate_cap = 11;
   int64                 seed = 12;
 }
 
