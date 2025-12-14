@@ -90,83 +90,6 @@ func (m *OrchestratorManager) SetStatus(status *pb.ProbingOrchestratorStatus) {
 	m.currentStatus = status
 }
 
-// RegisterComponent registers a new agent or generator with the orchestrator.
-func (m *OrchestratorManager) RegisterComponent(ctx context.Context, req *pb.RegisterComponentRequest) (*pb.RegisterComponentResponse, error) {
-	switch comp := req.Component.(type) {
-	case *pb.RegisterComponentRequest_ProbingAgentSpec:
-		return m.registerAgent(comp.ProbingAgentSpec)
-	case *pb.RegisterComponentRequest_ProbingDirectiveGeneratorSpec:
-		return m.registerGenerator(comp.ProbingDirectiveGeneratorSpec)
-	default:
-		return nil, ErrInvalidComponentType
-	}
-}
-
-func (m *OrchestratorManager) registerAgent(spec *pb.ProbingAgentSpec) (*pb.RegisterComponentResponse, error) {
-	id := uuid.New().String()
-
-	status := &pb.ProbingAgentStatus{
-		Uuid:           id,
-		ProbingRateCap: m.GetStatus().GlobalProbingRateCap,
-		Tags:           make(map[string]string),
-	}
-
-	if err := m.store.RegisterAgent(spec, status); err != nil {
-		return nil, err
-	}
-
-	log.Printf("registered agent: uuid=%s, vantage_point=%s", id, spec.VantagePoint.Name)
-
-	return &pb.RegisterComponentResponse{
-		Component: &pb.RegisterComponentResponse_ProbingAgentStatus{
-			ProbingAgentStatus: status,
-		},
-	}, nil
-}
-
-func (m *OrchestratorManager) registerGenerator(spec *pb.ProbingDirectiveGeneratorSpec) (*pb.RegisterComponentResponse, error) {
-	id := uuid.New().String()
-
-	// Get current agent specs for the generator
-	agentSpecs, _ := m.store.ListAgents()
-
-	status := &pb.ProbingDirectiveGeneratorStatus{
-		Uuid:                                 id,
-		ProbeGenerationRatePerSecondPerAgent: m.GetSpec().DefaultGlobalProbingRateCap,
-		AgentSpecs:                           agentSpecs,
-		Tags:                                 make(map[string]string),
-	}
-
-	if err := m.store.RegisterGenerator(spec, status); err != nil {
-		return nil, err
-	}
-
-	log.Printf("registered generator: uuid=%s", id)
-
-	return &pb.RegisterComponentResponse{
-		Component: &pb.RegisterComponentResponse_ProbingDirectiveGeneratorStatus{
-			ProbingDirectiveGeneratorStatus: status,
-		},
-	}, nil
-}
-
-// UnregisterComponent removes a component from the orchestrator.
-func (m *OrchestratorManager) UnregisterComponent(ctx context.Context, req *pb.UnRegisterComponentRequest) error {
-	// Try to delete as agent first
-	if err := m.store.DeleteAgent(req.Uuid); err == nil {
-		log.Printf("unregistered agent: uuid=%s", req.Uuid)
-		return nil
-	}
-
-	// Try as generator
-	if err := m.store.DeleteGenerator(req.Uuid); err == nil {
-		log.Printf("unregistered generator: uuid=%s", req.Uuid)
-		return nil
-	}
-
-	return ErrComponentNotFound
-}
-
 // EnqueueDirective adds a probing directive to the distribution queue.
 func (m *OrchestratorManager) EnqueueDirective(ctx context.Context, directive *pb.ProbingDirective) {
 	select {
@@ -187,16 +110,77 @@ func (m *OrchestratorManager) EnqueueElement(ctx context.Context, element *pb.Fo
 	}
 }
 
-// RegisterComponent handles gRPC registration requests.
-// Note: This wraps the OrchestratorManager method for gRPC compatibility.
-// The interface method is already named RegisterComponent, so this satisfies both.
+func (m *OrchestratorManager) Join(ctx context.Context, req *pb.JoinRequest) (*pb.JoinResponse, error) {
+	switch comp := req.Spec.(type) {
+	case *pb.JoinRequest_ProbingAgentSpec:
+		return m.joinAgent(comp.ProbingAgentSpec)
+	case *pb.JoinRequest_ProbingDirectiveGeneratorSpec:
+		return m.joinGenerator(comp.ProbingDirectiveGeneratorSpec)
+	default:
+		return nil, ErrInvalidComponentType
+	}
+}
 
-// UnRegisterComponent handles gRPC unregistration requests.
-func (m *OrchestratorManager) UnRegisterComponent(ctx context.Context, req *pb.UnRegisterComponentRequest) (*emptypb.Empty, error) {
-	if err := m.UnregisterComponent(ctx, req); err != nil {
+func (m *OrchestratorManager) Leave(ctx context.Context, req *pb.LeaveRequest) (*emptypb.Empty, error) {
+	if err := m.store.RemoveAgent(req.Uuid); err == nil {
+		log.Printf("unregistered agent with uuid=%s", req.Uuid)
+		return &emptypb.Empty{}, nil
+	}
+
+	if err := m.store.RemoveGenerator(req.Uuid); err == nil {
+		log.Printf("unregistered generator with uuid=%s", req.Uuid)
+		return &emptypb.Empty{}, nil
+	}
+
+	return &emptypb.Empty{}, ErrComponentNotFound
+}
+
+func (m *OrchestratorManager) joinAgent(spec *pb.ProbingAgentSpec) (*pb.JoinResponse, error) {
+	id := uuid.New().String()
+
+	status := &pb.ProbingAgentStatus{
+		Uuid:           id,
+		ProbingRateCap: m.GetStatus().GlobalProbingRateCap,
+		Tags:           make(map[string]string),
+	}
+
+	if err := m.store.AddOrUpdateAgent(spec, status); err != nil { // Change the name later
 		return nil, err
 	}
-	return &emptypb.Empty{}, nil
+
+	log.Printf("registered agent with uuid=%s", id)
+
+	return &pb.JoinResponse{
+		Status: &pb.JoinResponse_ProbingAgentStatus{
+			ProbingAgentStatus: status,
+		},
+	}, nil
+}
+
+func (m *OrchestratorManager) joinGenerator(spec *pb.ProbingDirectiveGeneratorSpec) (*pb.JoinResponse, error) {
+	id := uuid.New().String()
+
+	// Get current agent specs for the generator
+	agentSpecs := m.store.ListAgents()
+
+	status := &pb.ProbingDirectiveGeneratorStatus{
+		Uuid:                                 id,
+		ProbeGenerationRatePerSecondPerAgent: m.GetSpec().DefaultGlobalProbingRateCap,
+		AgentSpecs:                           agentSpecs,
+		Tags:                                 make(map[string]string),
+	}
+
+	if err := m.store.AddOrUpdateGenerator(spec, status); err != nil {
+		return nil, err
+	}
+
+	log.Printf("registered generator with uuid=%s", id)
+
+	return &pb.JoinResponse{
+		Status: &pb.JoinResponse_ProbingDirectiveGeneratorStatus{
+			ProbingDirectiveGeneratorStatus: status,
+		},
+	}, nil
 }
 
 // PushProbingDirectives receives directives from generators.
@@ -276,7 +260,7 @@ func (m *OrchestratorManager) PullForwardingInfoElements(_ *emptypb.Empty, strea
 	for {
 		select {
 		case <-ctx.Done():
-			return ctx.Err()
+			return nil
 		case element := <-m.elementCh:
 			if err := stream.Send(element); err != nil {
 				return err
@@ -317,13 +301,13 @@ func (m *OrchestratorManager) runNotificationLoop(ctx context.Context) {
 }
 
 func (m *OrchestratorManager) notifyChangedAgents(ctx context.Context) {
-	changedStatuses := m.store.GetChangedAgents()
-	if len(changedStatuses) == 0 {
+	dirtyUuids := m.store.GetDirtyAgentUuids()
+	if len(dirtyUuids) == 0 {
 		return
 	}
 
-	for _, status := range changedStatuses {
-		spec, _, err := m.store.GetAgent(status.Uuid)
+	for _, uuid := range dirtyUuids {
+		spec, status, err := m.store.GetAgent(uuid)
 		if err != nil {
 			continue
 		}
@@ -348,22 +332,16 @@ func (m *OrchestratorManager) notifyChangedAgents(ctx context.Context) {
 }
 
 func (m *OrchestratorManager) notifyChangedGenerators(ctx context.Context) {
-	changedStatuses := m.store.GetChangedGenerators()
-	if len(changedStatuses) == 0 {
+	dirtyUuids := m.store.GetDirtyGeneratorUuids()
+	if len(dirtyUuids) == 0 {
 		return
 	}
 
-	// Get current agent specs to include in generator status
-	agentSpecs, _ := m.store.ListAgents()
-
-	for _, status := range changedStatuses {
-		spec, _, err := m.store.GetGenerator(status.Uuid)
+	for _, uuid := range dirtyUuids {
+		spec, status, err := m.store.GetGenerator(uuid)
 		if err != nil {
 			continue
 		}
-
-		// Update agent specs in status
-		status.AgentSpecs = agentSpecs
 
 		go func(spec *pb.ProbingDirectiveGeneratorSpec, status *pb.ProbingDirectiveGeneratorStatus) {
 			client, conn, err := clients.NewInsecureGeneratorClient(spec.InterfaceAddr)

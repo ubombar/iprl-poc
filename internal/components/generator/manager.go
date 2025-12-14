@@ -94,20 +94,20 @@ func (m *GeneratorManager) Run(ctx context.Context) error {
 
 		client, conn, err := clients.NewInsecureOrchestratorClient(m.GetSpec().OrchestratorAddress)
 		if err != nil {
-			log.Printf("failed to connect for unregistration: %v", err)
+			log.Printf("failed to connect to orchestrator: %v", err)
 			return
 		}
 		defer conn.Close()
 
-		_, err = client.UnRegisterComponent(cleanupCtx, &pb.UnRegisterComponentRequest{
+		_, err = client.Leave(cleanupCtx, &pb.LeaveRequest{
 			Uuid: status.Uuid,
 		})
 		if err != nil {
-			log.Printf("failed to unregister component: %v", err)
+			log.Printf("failed to leave the cluster: %v", err)
 			return
 		}
 
-		log.Printf("successfully unregistered from orchestrator, uuid=%s", status.Uuid)
+		log.Printf("generator with uuid=%s successfully left the cluster", status.Uuid)
 	}()
 
 	for {
@@ -129,7 +129,7 @@ func (m *GeneratorManager) Run(ctx context.Context) error {
 		client, conn, err := clients.NewInsecureOrchestratorClient(spec.OrchestratorAddress)
 		if err != nil {
 			numRetries++
-			log.Printf("failed to open connection with the orchestrator (num_tries=%d): %v", numRetries, err)
+			log.Printf("failed to connect to the orchestrator (num_tries=%d): %v", numRetries, err)
 			if conn != nil {
 				conn.Close()
 			}
@@ -140,15 +140,15 @@ func (m *GeneratorManager) Run(ctx context.Context) error {
 		}
 
 		// If the uuid is not given by the orchestrator we need to register the ourselves.
-		if m.currentStatus == nil || m.currentStatus.Uuid == "" {
-			res, err := client.RegisterComponent(ctx, &pb.RegisterComponentRequest{
-				Component: &pb.RegisterComponentRequest_ProbingDirectiveGeneratorSpec{
+		if m.currentStatus == nil {
+			res, err := client.Join(ctx, &pb.JoinRequest{
+				Spec: &pb.JoinRequest_ProbingDirectiveGeneratorSpec{
 					ProbingDirectiveGeneratorSpec: spec,
 				},
 			})
 			if err != nil {
 				numRetries++
-				log.Printf("failed to register generator with the orchestrator (num_tries=%d): %v", numRetries, err)
+				log.Printf("failed to join to the cluster (num_tries=%d): %v", numRetries, err)
 				conn.Close()
 				if err := util.SleepWithContext(ctx, 5*time.Second); err != nil {
 					return nil
@@ -158,12 +158,12 @@ func (m *GeneratorManager) Run(ctx context.Context) error {
 
 			// Validate response
 			if res.GetProbingDirectiveGeneratorStatus() == nil {
-				log.Println("failed to get status from orchestrator, this is likely a bug on the orchestrator side")
+				log.Println("failed to get a valid status from the orchestrator, this is likely a bug on the orchestrator side")
 				conn.Close()
 				continue
 			}
 			m.SetStatus(res.GetProbingDirectiveGeneratorStatus())
-			log.Printf("registered with orchestrator, uuid=%s", m.GetStatus().Uuid)
+			log.Printf("generator with uuid=%s successfully joined to the cluster", m.GetStatus().Uuid)
 		}
 
 		// Reset retries on successful registration
@@ -200,7 +200,11 @@ func (m *GeneratorManager) Run(ctx context.Context) error {
 }
 
 // streamDirectives generates and sends directives to the orchestrator.
+//
+// We are doing this in the same Go routine. This is for simplicity.
+// Normally this should be in a separate Go routine and run concurrently.
 func (m *GeneratorManager) streamDirectives(ctx context.Context, stream grpc.ClientStreamingClient[pb.ProbingDirective, emptypb.Empty]) {
+
 	for {
 		// Check context
 		select {
@@ -231,7 +235,8 @@ func (m *GeneratorManager) streamDirectives(ctx context.Context, stream grpc.Cli
 		}
 
 		// Rate limit
-		interval := time.Second / time.Duration(status.ProbeGenerationRatePerSecondPerAgent)
+		interval := time.Second / time.Duration(int(status.ProbeGenerationRatePerSecondPerAgent)*len(m.GetStatus().AgentSpecs))
+
 		if err := util.SleepWithContext(ctx, interval); err != nil {
 			return
 		}

@@ -92,20 +92,20 @@ func (m *AgentManager) Run(ctx context.Context) error {
 
 		client, conn, err := clients.NewInsecureOrchestratorClient(m.GetSpec().OrchestratorAddress)
 		if err != nil {
-			log.Printf("failed to connect for unregistration: %v", err)
+			log.Printf("failed to connect to orchestrator: %v", err)
 			return
 		}
 		defer conn.Close()
 
-		_, err = client.UnRegisterComponent(cleanupCtx, &pb.UnRegisterComponentRequest{
+		_, err = client.Leave(cleanupCtx, &pb.LeaveRequest{
 			Uuid: status.Uuid,
 		})
 		if err != nil {
-			log.Printf("failed to unregister component: %v", err)
+			log.Printf("failed to leave the cluster: %v", err)
 			return
 		}
 
-		log.Printf("successfully unregistered from orchestrator, uuid=%s", status.Uuid)
+		log.Printf("agent with uuid=%s successfully left the cluster", status.Uuid)
 	}()
 
 	for {
@@ -127,7 +127,7 @@ func (m *AgentManager) Run(ctx context.Context) error {
 		client, conn, err := clients.NewInsecureOrchestratorClient(spec.OrchestratorAddress)
 		if err != nil {
 			numRetries++
-			log.Printf("failed to open connection with the orchestrator (num_tries=%d): %v", numRetries, err)
+			log.Printf("failed to connect to the orchestrator (num_tries=%d): %v", numRetries, err)
 			if conn != nil {
 				conn.Close()
 			}
@@ -138,15 +138,15 @@ func (m *AgentManager) Run(ctx context.Context) error {
 		}
 
 		// If the uuid is not given by the orchestrator we need to register the ourselves.
-		if m.currentStatus == nil || m.currentStatus.Uuid == "" {
-			res, err := client.RegisterComponent(ctx, &pb.RegisterComponentRequest{
-				Component: &pb.RegisterComponentRequest_ProbingAgentSpec{
+		if m.currentStatus == nil {
+			res, err := client.Join(ctx, &pb.JoinRequest{
+				Spec: &pb.JoinRequest_ProbingAgentSpec{
 					ProbingAgentSpec: spec,
 				},
 			})
 			if err != nil {
 				numRetries++
-				log.Printf("failed to register agent with the orchestrator (num_tries=%d): %v", numRetries, err)
+				log.Printf("failed to join to the cluster (num_tries=%d): %v", numRetries, err)
 				conn.Close()
 				if err := util.SleepWithContext(ctx, 5*time.Second); err != nil {
 					return nil
@@ -156,12 +156,12 @@ func (m *AgentManager) Run(ctx context.Context) error {
 
 			// Validate response
 			if res.GetProbingAgentStatus() == nil {
-				log.Println("failed to get status from orchestrator, this is likely a bug on the orchestrator side")
+				log.Println("failed to get a valid status from the orchestrator, this is likely a bug on the orchestrator side")
 				conn.Close()
 				continue
 			}
 			m.SetStatus(res.GetProbingAgentStatus())
-			log.Printf("registered with orchestrator, uuid=%s", m.GetStatus().Uuid)
+			log.Printf("agent with uuid=%s successfully joined to the cluster", m.GetStatus().Uuid)
 		}
 
 		// Reset retries on successful registration
@@ -179,7 +179,7 @@ func (m *AgentManager) Run(ctx context.Context) error {
 			continue
 		}
 
-		// Stream elements until error or context cancellation
+		// Stream directives until error or context cancellation
 		m.streamElements(ctx, stream)
 
 		// Close the stream
@@ -198,6 +198,9 @@ func (m *AgentManager) Run(ctx context.Context) error {
 }
 
 // streamElements receives directives and sends back forwarding info elements.
+//
+// We are doing this in the same Go routine. This is for simplicity.
+// Normally this should be in a separate Go routine and run concurrently.
 func (m *AgentManager) streamElements(ctx context.Context, stream grpc.BidiStreamingClient[pb.ForwardingInfoElement, pb.ProbingDirective]) {
 	log.Println("started streaming elements")
 	for {
@@ -215,9 +218,13 @@ func (m *AgentManager) streamElements(ctx context.Context, stream grpc.BidiStrea
 		}
 
 		// Process directive and generate element
-		element := m.processDirective(directive)
-		if element == nil {
-			continue
+		element := m.probe(directive)
+
+		// Rate limit
+		interval := time.Second / time.Duration(m.GetStatus().ProbingRateCap)
+
+		if err := util.SleepWithContext(ctx, interval); err != nil {
+			return
 		}
 
 		// Send element back to orchestrator
@@ -228,9 +235,9 @@ func (m *AgentManager) streamElements(ctx context.Context, stream grpc.BidiStrea
 	}
 }
 
-// processDirective processes a single directive and returns the result.
+// probe processes a single directive and returns the result.
 // Override this method in a subtype for custom probing logic.
-func (m *AgentManager) processDirective(directive *pb.ProbingDirective) *pb.ForwardingInfoElement {
+func (m *AgentManager) probe(directive *pb.ProbingDirective) *pb.ForwardingInfoElement {
 	return &pb.ForwardingInfoElement{ // TODO
 		VantagePoint:    m.currentSpec.VantagePoint,
 		NearTtl:         10,

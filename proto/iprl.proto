@@ -19,31 +19,30 @@ service ProbingDirectiveGeneratorInterface {
 }
 
 // === Probing Orchestrator === 
-message RegisterComponentRequest {
-  oneof component {
-    ProbingAgentSpec                probing_agent_spec = 1;
-    ProbingDirectiveGeneratorSpec   probing_directive_generator_spec = 2;
+message JoinRequest {
+  oneof spec {
+    ProbingAgentSpec probing_agent_spec = 1;
+    ProbingDirectiveGeneratorSpec probing_directive_generator_spec = 2;
   }
 }
 
-message RegisterComponentResponse {
-  oneof component {
-    ProbingAgentStatus                probing_agent_status = 1;
-    ProbingDirectiveGeneratorStatus   probing_directive_generator_status = 2;
+message JoinResponse {
+  oneof status {
+    ProbingAgentStatus probing_agent_status = 1;
+    ProbingDirectiveGeneratorStatus probing_directive_generator_status = 2;
   }
 }
 
-message UnRegisterComponentRequest {
+message LeaveRequest {
   string uuid = 1;
 }
 
 service ProbingOrchestratorInterface {
-  // Any component who wants to register itsef should call this function. Recalling this with an existing
-  // uuid will update the spec. 
-  rpc RegisterComponent(RegisterComponentRequest) returns (RegisterComponentResponse);
+  // Component joins the cluster and receives its assigned status
+  rpc Join(JoinRequest) returns (JoinResponse);
 
-  // Any component who wants to unregister themsevelves for graceful shutdown.
-  rpc UnRegisterComponent(UnRegisterComponentRequest) returns (google.protobuf.Empty);
+  // Component leaves the cluster gracefully
+  rpc Leave(LeaveRequest) returns (google.protobuf.Empty);
 
   // Any component who wants to stream probing directives to the orchstrator should use this.
   rpc PushProbingDirectives(stream ProbingDirective) returns (google.protobuf.Empty);

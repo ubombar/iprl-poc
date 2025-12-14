@@ -7,77 +7,139 @@ import (
 )
 
 type componentStore struct {
-	mu              sync.RWMutex
+	mu sync.RWMutex
+
 	agentSpecs      map[string]*pb.ProbingAgentSpec
 	agentStatus     map[string]*pb.ProbingAgentStatus
 	generatorSpecs  map[string]*pb.ProbingDirectiveGeneratorSpec
 	generatorStatus map[string]*pb.ProbingDirectiveGeneratorStatus
 
-	changedMu         sync.Mutex
-	changedAgents     map[string]struct{}
-	changedGenerators map[string]struct{}
+	dirtyAgentUuids     map[string]struct{}
+	dirtyGeneratorUuids map[string]struct{}
 }
 
 func newComponentStore() *componentStore {
 	return &componentStore{
-		agentSpecs:        make(map[string]*pb.ProbingAgentSpec),
-		agentStatus:       make(map[string]*pb.ProbingAgentStatus),
-		generatorSpecs:    make(map[string]*pb.ProbingDirectiveGeneratorSpec),
-		generatorStatus:   make(map[string]*pb.ProbingDirectiveGeneratorStatus),
-		changedAgents:     make(map[string]struct{}),
-		changedGenerators: make(map[string]struct{}),
+		agentSpecs:      make(map[string]*pb.ProbingAgentSpec),
+		agentStatus:     make(map[string]*pb.ProbingAgentStatus),
+		generatorSpecs:  make(map[string]*pb.ProbingDirectiveGeneratorSpec),
+		generatorStatus: make(map[string]*pb.ProbingDirectiveGeneratorStatus),
+
+		dirtyAgentUuids:     make(map[string]struct{}),
+		dirtyGeneratorUuids: make(map[string]struct{}),
 	}
 }
 
-func (c *componentStore) RegisterAgent(spec *pb.ProbingAgentSpec, status *pb.ProbingAgentStatus) error {
+// AddOrUpdateAgent adds or updates an agent in the store.
+// If agent exists: updates spec and status, marks agent as dirty.
+// If agent is new: inserts spec and status, does NOT mark agent as dirty,
+// but adds agent spec to ALL generators and marks them as dirty.
+func (c *componentStore) AddOrUpdateAgent(spec *pb.ProbingAgentSpec, status *pb.ProbingAgentStatus) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	if _, ok := c.agentSpecs[status.Uuid]; ok {
-		return ErrComponentExists
-	}
+	_, exists := c.agentSpecs[status.Uuid]
 
 	c.agentSpecs[status.Uuid] = spec
 	c.agentStatus[status.Uuid] = status
-	c.markAgentChanged(status.Uuid)
 
-	return nil
-}
+	if exists {
+		// Existing agent updated - mark agent as dirty
+		c.dirtyAgentUuids[status.Uuid] = struct{}{}
 
-func (c *componentStore) RegisterGenerator(spec *pb.ProbingDirectiveGeneratorSpec, status *pb.ProbingDirectiveGeneratorStatus) error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
+		// Also update spec in all generators' AgentSpecs list
+		for _, genStatus := range c.generatorStatus {
+			for i, agentSpec := range genStatus.AgentSpecs {
+				if agentSpec.InterfaceAddr == spec.InterfaceAddr {
+					genStatus.AgentSpecs[i] = spec
+					break
+				}
+			}
+		}
+	} else {
+		// New agent added - add to all generators and mark them as dirty
+		for uuid, genStatus := range c.generatorStatus {
+			// Check if agent already exists in generator's list
+			alreadyExists := false
+			for _, agentSpec := range genStatus.AgentSpecs {
+				if agentSpec.InterfaceAddr == spec.InterfaceAddr {
+					alreadyExists = true
+					break
+				}
+			}
 
-	if _, ok := c.generatorSpecs[status.Uuid]; ok {
-		return ErrComponentExists
+			if !alreadyExists {
+				genStatus.AgentSpecs = append(genStatus.AgentSpecs, spec)
+			}
+
+			c.dirtyGeneratorUuids[uuid] = struct{}{}
+		}
 	}
 
-	c.generatorSpecs[status.Uuid] = spec
-	c.generatorStatus[status.Uuid] = status
-	c.markGeneratorChanged(status.Uuid)
-
 	return nil
 }
 
-func (c *componentStore) DeleteAgent(uuid string) error {
+// RemoveAgent removes an agent from the store.
+// Removes agent spec from ALL generators and marks them as dirty.
+func (c *componentStore) RemoveAgent(uuid string) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	if _, ok := c.agentSpecs[uuid]; !ok {
+	spec, ok := c.agentSpecs[uuid]
+	if !ok {
 		return ErrComponentNotFound
 	}
 
 	delete(c.agentSpecs, uuid)
 	delete(c.agentStatus, uuid)
+	delete(c.dirtyAgentUuids, uuid)
 
-	c.changedMu.Lock()
-	delete(c.changedAgents, uuid)
-	c.changedMu.Unlock()
+	// Remove agent spec from all generators and mark them as dirty
+	for genUuid, genStatus := range c.generatorStatus {
+		for i, agentSpec := range genStatus.AgentSpecs {
+			if agentSpec.InterfaceAddr == spec.InterfaceAddr {
+				// Remove from slice
+				genStatus.AgentSpecs = append(genStatus.AgentSpecs[:i], genStatus.AgentSpecs[i+1:]...)
+				break
+			}
+		}
+		c.dirtyGeneratorUuids[genUuid] = struct{}{}
+	}
 
 	return nil
 }
 
-func (c *componentStore) DeleteGenerator(uuid string) error {
+// AddOrUpdateGenerator adds or updates a generator in the store.
+// If generator is new: populates AgentSpecs with all current agents.
+// If generator exists: updates spec and status, marks generator as dirty.
+func (c *componentStore) AddOrUpdateGenerator(spec *pb.ProbingDirectiveGeneratorSpec, status *pb.ProbingDirectiveGeneratorStatus) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	_, exists := c.generatorSpecs[status.Uuid]
+
+	c.generatorSpecs[status.Uuid] = spec
+
+	if exists {
+		// Existing generator updated - mark as dirty
+		c.generatorStatus[status.Uuid] = status
+		c.dirtyGeneratorUuids[status.Uuid] = struct{}{}
+	} else {
+		// New generator - populate AgentSpecs with all current agents
+		agentSpecs := make([]*pb.ProbingAgentSpec, 0, len(c.agentSpecs))
+		for _, agentSpec := range c.agentSpecs {
+			agentSpecs = append(agentSpecs, agentSpec)
+		}
+		status.AgentSpecs = agentSpecs
+		c.generatorStatus[status.Uuid] = status
+		// Do not mark as dirty - it was just created with current state
+	}
+
+	return nil
+}
+
+// RemoveGenerator removes a generator from the store.
+func (c *componentStore) RemoveGenerator(uuid string) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -87,14 +149,12 @@ func (c *componentStore) DeleteGenerator(uuid string) error {
 
 	delete(c.generatorSpecs, uuid)
 	delete(c.generatorStatus, uuid)
-
-	c.changedMu.Lock()
-	delete(c.changedGenerators, uuid)
-	c.changedMu.Unlock()
+	delete(c.dirtyGeneratorUuids, uuid)
 
 	return nil
 }
 
+// GetAgent returns the spec and status for an agent.
 func (c *componentStore) GetAgent(uuid string) (*pb.ProbingAgentSpec, *pb.ProbingAgentStatus, error) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
@@ -107,6 +167,7 @@ func (c *componentStore) GetAgent(uuid string) (*pb.ProbingAgentSpec, *pb.Probin
 	return spec, c.agentStatus[uuid], nil
 }
 
+// GetGenerator returns the spec and status for a generator.
 func (c *componentStore) GetGenerator(uuid string) (*pb.ProbingDirectiveGeneratorSpec, *pb.ProbingDirectiveGeneratorStatus, error) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
@@ -119,86 +180,115 @@ func (c *componentStore) GetGenerator(uuid string) (*pb.ProbingDirectiveGenerato
 	return spec, c.generatorStatus[uuid], nil
 }
 
-func (c *componentStore) ListAgents() ([]*pb.ProbingAgentSpec, []*pb.ProbingAgentStatus) {
+// UpdateAgentStatus updates only the status of an agent and marks it as dirty.
+func (c *componentStore) UpdateAgentStatus(uuid string, status *pb.ProbingAgentStatus) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if _, ok := c.agentSpecs[uuid]; !ok {
+		return ErrComponentNotFound
+	}
+
+	status.Uuid = uuid
+	c.agentStatus[uuid] = status
+	c.dirtyAgentUuids[uuid] = struct{}{}
+
+	return nil
+}
+
+// UpdateGeneratorStatus updates only the status of a generator and marks it as dirty.
+func (c *componentStore) UpdateGeneratorStatus(uuid string, status *pb.ProbingDirectiveGeneratorStatus) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if _, ok := c.generatorSpecs[uuid]; !ok {
+		return ErrComponentNotFound
+	}
+
+	status.Uuid = uuid
+	c.generatorStatus[uuid] = status
+	c.dirtyGeneratorUuids[uuid] = struct{}{}
+
+	return nil
+}
+
+// ListAgents returns all agent specs.
+func (c *componentStore) ListAgents() []*pb.ProbingAgentSpec {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
 	specs := make([]*pb.ProbingAgentSpec, 0, len(c.agentSpecs))
-	statuses := make([]*pb.ProbingAgentStatus, 0, len(c.agentStatus))
-
-	for uuid, spec := range c.agentSpecs {
+	for _, spec := range c.agentSpecs {
 		specs = append(specs, spec)
-		if status, ok := c.agentStatus[uuid]; ok {
-			statuses = append(statuses, status)
-		}
 	}
 
-	return specs, statuses
+	return specs
 }
 
-func (c *componentStore) ListGenerators() ([]*pb.ProbingDirectiveGeneratorSpec, []*pb.ProbingDirectiveGeneratorStatus) {
+// ListGenerators returns all generator specs.
+func (c *componentStore) ListGenerators() []*pb.ProbingDirectiveGeneratorSpec {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
 	specs := make([]*pb.ProbingDirectiveGeneratorSpec, 0, len(c.generatorSpecs))
-	statuses := make([]*pb.ProbingDirectiveGeneratorStatus, 0, len(c.generatorStatus))
-
-	for uuid, spec := range c.generatorSpecs {
+	for _, spec := range c.generatorSpecs {
 		specs = append(specs, spec)
-		if status, ok := c.generatorStatus[uuid]; ok {
-			statuses = append(statuses, status)
+	}
+
+	return specs
+}
+
+// GetDirtyAgentUuids returns UUIDs of dirty agents and clears their dirty flags.
+func (c *componentStore) GetDirtyAgentUuids() []string {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	uuids := make([]string, 0, len(c.dirtyAgentUuids))
+	for uuid := range c.dirtyAgentUuids {
+		if _, ok := c.agentStatus[uuid]; ok {
+			uuids = append(uuids, uuid)
 		}
 	}
 
-	return specs, statuses
+	c.dirtyAgentUuids = make(map[string]struct{})
+
+	return uuids
 }
 
-func (c *componentStore) GetChangedAgents() []*pb.ProbingAgentStatus {
+// GetDirtyGeneratorUuids returns UUIDs of dirty generators and clears their dirty flags.
+func (c *componentStore) GetDirtyGeneratorUuids() []string {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	uuids := make([]string, 0, len(c.dirtyGeneratorUuids))
+	for uuid := range c.dirtyGeneratorUuids {
+		if _, ok := c.generatorStatus[uuid]; ok {
+			uuids = append(uuids, uuid)
+		}
+	}
+
+	c.dirtyGeneratorUuids = make(map[string]struct{})
+
+	return uuids
+}
+
+// AgentCount returns the number of registered agents.
+func (c *componentStore) AgentCount() int {
 	c.mu.RLock()
-	c.changedMu.Lock()
 	defer c.mu.RUnlock()
-	defer c.changedMu.Unlock()
-
-	var statuses []*pb.ProbingAgentStatus
-
-	for uuid := range c.changedAgents {
-		if status, ok := c.agentStatus[uuid]; ok {
-			statuses = append(statuses, status)
-		}
-	}
-
-	c.changedAgents = make(map[string]struct{})
-
-	return statuses
+	return len(c.agentSpecs)
 }
 
-func (c *componentStore) GetChangedGenerators() []*pb.ProbingDirectiveGeneratorStatus {
+// GeneratorCount returns the number of registered generators.
+func (c *componentStore) GeneratorCount() int {
 	c.mu.RLock()
-	c.changedMu.Lock()
 	defer c.mu.RUnlock()
-	defer c.changedMu.Unlock()
-
-	var statuses []*pb.ProbingDirectiveGeneratorStatus
-
-	for uuid := range c.changedGenerators {
-		if status, ok := c.generatorStatus[uuid]; ok {
-			statuses = append(statuses, status)
-		}
-	}
-
-	c.changedGenerators = make(map[string]struct{})
-
-	return statuses
+	return len(c.generatorSpecs)
 }
 
-func (c *componentStore) markAgentChanged(uuid string) {
-	c.changedMu.Lock()
-	defer c.changedMu.Unlock()
-	c.changedAgents[uuid] = struct{}{}
-}
-
-func (c *componentStore) markGeneratorChanged(uuid string) {
-	c.changedMu.Lock()
-	defer c.changedMu.Unlock()
-	c.changedGenerators[uuid] = struct{}{}
+// HasDirtyComponents returns true if there are any dirty agents or generators.
+func (c *componentStore) HasDirtyComponents() bool {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return len(c.dirtyAgentUuids) > 0 || len(c.dirtyGeneratorUuids) > 0
 }

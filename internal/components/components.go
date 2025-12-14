@@ -62,14 +62,6 @@ type OrchestratorManager interface {
 
 	MetaManager[*pb.ProbingOrchestratorSpec, *pb.ProbingOrchestratorStatus]
 
-	// RegisterComponent registers a new agent or generator with the orchestrator.
-	// Returns the component's assigned status including its UUID.
-	RegisterComponent(ctx context.Context, req *pb.RegisterComponentRequest) (*pb.RegisterComponentResponse, error)
-
-	// UnregisterComponent removes a component from the orchestrator.
-	// Should be called during graceful shutdown.
-	UnregisterComponent(ctx context.Context, req *pb.UnRegisterComponentRequest) error
-
 	// EnqueueDirective adds a probing directive to the distribution queue.
 	// Called by generators to submit directives for routing to agents.
 	EnqueueDirective(ctx context.Context, directive *pb.ProbingDirective)
