@@ -51,7 +51,7 @@ install-tools:
 ## build: Build all binaries
 build: proto
 	@mkdir -p $(BIN_DIR)
-	$(GOBUILD) $(LDFLAGS_VERSION) -o $(BIN_DIR)/generatir ./cmd/generator
+	$(GOBUILD) $(LDFLAGS_VERSION) -o $(BIN_DIR)/generator ./cmd/generator
 	$(GOBUILD) $(LDFLAGS_VERSION) -o $(BIN_DIR)/orchestrator ./cmd/orchestrator
 	$(GOBUILD) $(LDFLAGS_VERSION) -o $(BIN_DIR)/agent ./cmd/agent
 

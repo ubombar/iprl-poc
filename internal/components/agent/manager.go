@@ -138,7 +138,7 @@ func (m *AgentManager) Run(ctx context.Context) error {
 		}
 
 		// If the uuid is not given by the orchestrator we need to register the ourselves.
-		if m.currentStatus.Uuid == "" {
+		if m.currentStatus == nil || m.currentStatus.Uuid == "" {
 			res, err := client.RegisterComponent(ctx, &pb.RegisterComponentRequest{
 				Component: &pb.RegisterComponentRequest_ProbingAgentSpec{
 					ProbingAgentSpec: spec,
