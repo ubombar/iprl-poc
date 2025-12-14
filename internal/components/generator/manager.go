@@ -2,7 +2,9 @@ package generator
 
 import (
 	"context"
+	"errors"
 	"log"
+	"net"
 	"sync"
 	"time"
 
@@ -14,6 +16,8 @@ import (
 	"iprl-demo/internal/components"
 	pb "iprl-demo/internal/gen/proto"
 	"iprl-demo/internal/util"
+
+	"github.com/cenkalti/backoff/v4"
 )
 
 // Compile-time check that GeneratorManager implements components.GeneratorManager
@@ -24,7 +28,9 @@ var _ pb.ProbingDirectiveGeneratorInterfaceServer = (*GeneratorManager)(nil)
 type GeneratorManager struct {
 	pb.UnimplementedProbingDirectiveGeneratorInterfaceServer
 
-	mu sync.RWMutex
+	mu   sync.RWMutex
+	once sync.Once
+	ctx  context.Context
 
 	currentSpec   *pb.ProbingDirectiveGeneratorSpec
 	currentStatus *pb.ProbingDirectiveGeneratorStatus
@@ -81,191 +87,197 @@ func (m *GeneratorManager) SetStatus(status *pb.ProbingDirectiveGeneratorStatus)
 // Run starts the generator's main processing loop.
 // It connects to the orchestrator, registers itself, and streams directives.
 // It blocks until the context is cancelled or max retries are exceeded.
-func (m *GeneratorManager) Run(ctx context.Context) error {
+func (m *GeneratorManager) Run(parent context.Context) error {
+	// This is for adding the reference of manager to this object.
 	m.directiveGenerator.Register(m)
 
-	// try to unregister before shutdown
-	defer func() {
-		m.directiveGenerator.Close()
+	g, ctx := errgroup.WithContext(parent)
+	m.ctx = ctx
 
-		status := m.GetStatus()
-		if status == nil {
-			return
+	g.Go(func() error {
+		return m.runDirectiveGenerator(ctx)
+	})
+
+	g.Go(func() error {
+		return m.runDirectiveStream(ctx)
+	})
+
+	g.Go(func() error {
+		return m.runRPCServer(ctx)
+	})
+
+	g.Go(func() error {
+		<-ctx.Done()
+		m.Close()
+		return nil
+	})
+
+	if err := g.Wait(); err != nil && err != context.Canceled {
+		return err
+	}
+	return nil
+}
+
+func (m *GeneratorManager) runDirectiveGenerator(ctx context.Context) error {
+	return m.directiveGenerator.Run(ctx)
+}
+
+func (m *GeneratorManager) runRPCServer(ctx context.Context) error {
+	grpcServer := grpc.NewServer()
+	m.Register(grpcServer)
+
+	lis, err := net.Listen("tcp", m.currentSpec.GrpcAddress)
+	if err != nil {
+		return err
+	}
+
+	log.Printf("grpc server listening on %s", m.currentSpec.GrpcAddress)
+
+	// Shutdown logic
+	go func() {
+		<-ctx.Done()
+		log.Println("grpc shutdown initiated")
+
+		done := make(chan struct{})
+
+		go func() {
+			grpcServer.GracefulStop()
+			close(done)
+		}()
+
+		select {
+		case <-done:
+		case <-time.After(100 * time.Millisecond):
+			grpcServer.Stop()
 		}
 
-		// Create a new context for cleanup since the original may be cancelled
-		cleanupCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-
-		client, conn, err := clients.NewInsecureOrchestratorClient(m.GetSpec().OrchestratorAddress)
-		if err != nil {
-			log.Printf("failed to connect to orchestrator: %v", err)
-			return
-		}
-		defer conn.Close()
-
-		_, err = client.Leave(cleanupCtx, &pb.LeaveRequest{
-			Uuid: status.Uuid,
-		})
-		if err != nil {
-			log.Printf("failed to leave the cluster: %v", err)
-			return
-		}
-
-		log.Printf("generator with uuid=%s successfully left the cluster", status.Uuid)
 	}()
 
-	g, ctx2 := errgroup.WithContext(ctx)
-
-	g.Go(func() error {
-		return m.directiveGenerator.Run(ctx2)
-	})
-
-	g.Go(func() error {
-		numRetries := uint32(0)
-
-		for {
-			// Check if max retries exceeded
-			spec := m.GetSpec()
-			if spec.NumRetries != 0 && numRetries > spec.NumRetries {
-				log.Println("max number of retries exceeded, exiting")
-				return nil
-			}
-
-			// Check if context is cancelled
-			select {
-			case <-ctx.Done():
-				return nil
-			default:
-			}
-
-			// Try to connect to the orchestrator
-			client, conn, err := clients.NewInsecureOrchestratorClient(spec.OrchestratorAddress)
-			if err != nil {
-				numRetries++
-				log.Printf("failed to connect to the orchestrator (num_tries=%d): %v", numRetries, err)
-				if conn != nil {
-					conn.Close()
-				}
-				if err := util.SleepWithContext(ctx, 5*time.Second); err != nil {
-					return nil
-				}
-				continue
-			}
-
-			// If the uuid is not given by the orchestrator we need to register the ourselves.
-			if m.currentStatus == nil {
-				res, err := client.Join(ctx, &pb.JoinRequest{
-					Spec: &pb.JoinRequest_ProbingDirectiveGeneratorSpec{
-						ProbingDirectiveGeneratorSpec: spec,
-					},
-				})
-				if err != nil {
-					numRetries++
-					log.Printf("failed to join to the cluster (num_tries=%d): %v", numRetries, err)
-					conn.Close()
-					if err := util.SleepWithContext(ctx, 5*time.Second); err != nil {
-						return nil
-					}
-					continue
-				}
-
-				// Validate response
-				if res.GetProbingDirectiveGeneratorStatus() == nil {
-					log.Println("failed to get a valid status from the orchestrator, this is likely a bug on the orchestrator side")
-					conn.Close()
-					continue
-				}
-				m.SetStatus(res.GetProbingDirectiveGeneratorStatus())
-				log.Printf("generator with uuid=%s successfully joined to the cluster", m.GetStatus().Uuid)
-			}
-
-			// Reset retries on successful registration
-			numRetries = 0
-
-			// Try to establish a stream
-			stream, err := client.PushProbingDirectives(ctx)
-			if err != nil {
-				numRetries++
-				log.Printf("failed to open stream with the orchestrator (num_tries=%d): %v", numRetries, err)
-				conn.Close()
-				if err := util.SleepWithContext(ctx, 5*time.Second); err != nil {
-					return nil
-				}
-				continue
-			}
-
-			// Stream until error or context cancellation
-			m.streamDirectives(ctx, stream)
-
-			// Close the stream
-			if err := stream.CloseSend(); err != nil {
-				numRetries++
-				log.Printf("failed to close stream with the orchestrator (num_tries=%d): %v", numRetries, err)
-			}
-
-			conn.Close()
-
-			// Sleep before reconnecting
-			if err := util.SleepWithContext(ctx, 5*time.Second); err != nil {
-				return nil
-			}
-		}
-	})
-
-	if err := g.Wait(); err != nil {
-		log.Printf("there was an error on the run method: %v", err)
+	// Blocks until Stop / GracefulStop
+	err = grpcServer.Serve(lis)
+	if err != nil {
+		return err
 	}
 
 	return nil
 }
 
+func (m *GeneratorManager) runDirectiveStream(ctx context.Context) error {
+	bo := backoff.NewExponentialBackOff()
+
+	bo.InitialInterval = 1 * time.Second
+	bo.MaxInterval = 5 * time.Second
+	bo.MaxElapsedTime = 0 // retry forever
+
+	// Tie backoff lifecycle to context
+	boCtx := backoff.WithContext(bo, ctx)
+
+	return backoff.Retry(func() error {
+		// Exit cleanly on shutdown
+		if err := ctx.Err(); err != nil {
+			return backoff.Permanent(err)
+		}
+
+		spec := m.GetSpec()
+
+		if spec == nil {
+			return errors.New("spec nil")
+		}
+
+		client, conn, err := clients.NewInsecureOrchestratorClient(spec.OrchestratorAddress)
+		if err != nil {
+			return err // retry
+		}
+		defer conn.Close()
+
+		if err := m.joinCluster(ctx, client, spec); err != nil {
+			return err // retry
+		}
+
+		stream, err := m.openDirectiveStream(ctx, client)
+		if err != nil {
+			return err // retry
+		}
+
+		if err := m.streamDirectives(ctx, stream); err != nil {
+			return err // retry
+		}
+
+		return nil
+	}, boCtx)
+}
+
+func (m *GeneratorManager) joinCluster(ctx context.Context, client pb.ProbingOrchestratorInterfaceClient, spec *pb.ProbingDirectiveGeneratorSpec) error {
+	res, err := client.Join(ctx, &pb.JoinRequest{
+		Spec: &pb.JoinRequest_ProbingDirectiveGeneratorSpec{
+			ProbingDirectiveGeneratorSpec: spec,
+		},
+	})
+	if err != nil {
+		return err
+	}
+
+	status := res.GetProbingDirectiveGeneratorStatus()
+	if status == nil {
+		return errors.New("orchestrator returned nil generator status")
+	}
+
+	m.SetStatus(status)
+	log.Printf("joined orchestrator cluster as generator %s", status.Uuid)
+	return nil
+}
+
+func (m *GeneratorManager) openDirectiveStream(ctx context.Context, client pb.ProbingOrchestratorInterfaceClient) (pb.ProbingOrchestratorInterface_PushProbingDirectivesClient, error) {
+	return client.PushProbingDirectives(ctx)
+}
+
 // streamDirectives generates and sends directives to the orchestrator.
-func (m *GeneratorManager) streamDirectives(ctx context.Context, stream grpc.ClientStreamingClient[pb.ProbingDirective, emptypb.Empty]) {
-	g, ctx := errgroup.WithContext(ctx)
+func (m *GeneratorManager) streamDirectives(ctx context.Context, stream grpc.ClientStreamingClient[pb.ProbingDirective, emptypb.Empty]) error {
+	for {
+		status := m.GetStatus()
+		if status == nil || status.ProbeGenerationRatePerSecondPerAgent == 0 || len(status.AgentSpecs) == 0 {
 
-	g.Go(func() error {
-		for {
-			status := m.GetStatus()
-			if status == nil || status.ProbeGenerationRatePerSecondPerAgent == 0 || len(status.AgentSpecs) == 0 {
-				log.Printf("generator cannot generate directives either rate is 0 or there are no agents to select, retrying in 5 seconds")
-				if err := util.SleepWithContext(ctx, 5*time.Second); err != nil {
-					return err
-				}
-				continue
+			log.Printf("generator cannot generate directives either rate is 0 or there are no agents to select, retrying in 5 seconds")
+
+			if err := util.SleepWithContext(ctx, 5*time.Second); err != nil {
+				return err
 			}
+			continue
+		}
 
-			select {
-			case directive, ok := <-m.directiveGenerator.PullChannel():
-				if !ok {
-					return nil
-				}
-
-				// Rate limit here (we might do the rate limiting on the dirgen?)
-				interval := time.Second / time.Duration(int(status.ProbeGenerationRatePerSecondPerAgent)*len(m.GetStatus().AgentSpecs))
-
-				if err := util.SleepWithContext(ctx, interval); err != nil {
-					return err
-				}
-
-				if err := stream.Send(directive); err != nil {
-					return err
-				}
-
-			case <-ctx.Done():
+		select {
+		case directive, ok := <-m.directiveGenerator.PullChannel():
+			if !ok {
 				return nil
 			}
-		}
-	})
 
-	// Wait for all goroutines
-	if err := g.Wait(); err != nil {
-		log.Printf("there was an error on the directive gen method: %v", err)
-		return
+			interval := time.Second / time.Duration(int(status.ProbeGenerationRatePerSecondPerAgent)*len(m.GetStatus().AgentSpecs))
+
+			if err := util.SleepWithContext(ctx, interval); err != nil {
+				return err
+			}
+
+			if err := stream.Send(directive); err != nil {
+				return err
+			}
+
+		case <-ctx.Done():
+			return nil
+
+		case <-m.ctx.Done():
+			return nil
+		}
 	}
 }
 
 // Register registers this server with a gRPC server.
 func (m *GeneratorManager) Register(server *grpc.Server) {
 	pb.RegisterProbingDirectiveGeneratorInterfaceServer(server, m)
+}
+
+func (m *GeneratorManager) Close() error {
+	m.once.Do(func() {
+		m.directiveGenerator.Close()
+	})
+	return nil
 }

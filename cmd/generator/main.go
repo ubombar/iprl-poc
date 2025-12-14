@@ -7,12 +7,8 @@ import (
 	pb "iprl-demo/internal/gen/proto"
 	"iprl-demo/internal/util"
 	"log"
-	"net"
 	"os/signal"
 	"syscall"
-
-	"golang.org/x/sync/errgroup"
-	"google.golang.org/grpc"
 )
 
 // Set at build time
@@ -39,7 +35,7 @@ func main() {
 	spec := &pb.ProbingDirectiveGeneratorSpec{
 		SoftwareVersion:     Version,
 		InterfaceVersion:    Version,
-		InterfaceAddr:       *address,
+		GrpcAddress:         *address,
 		OrchestratorAddress: *poAddr,
 		NumRetries:          uint32(*retries),
 		Protocols:           util.ParseProtocols(*protocols),
@@ -56,45 +52,12 @@ func main() {
 
 	probingGenerator := generator.NewGeneratorManager(spec, directiveGenerator)
 
-	// Setup context with signal handling
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
 
-	g, ctx := errgroup.WithContext(ctx)
-
-	// gRPC server
-	var grpcServer *grpc.Server
-	g.Go(func() error {
-		lis, err := net.Listen("tcp", *address)
-		if err != nil {
-			return err
-		}
-
-		grpcServer = grpc.NewServer()
-		probingGenerator.Register(grpcServer)
-
-		log.Printf("generator listening on %s", *address)
-		return grpcServer.Serve(lis)
-	})
-
-	// Graceful shutdown
-	g.Go(func() error {
-		<-ctx.Done()
-		if grpcServer != nil {
-			log.Println("Shutting down gRPC server...")
-			grpcServer.GracefulStop()
-		}
-		return nil
-	})
-
-	// Run orchestrator manager
-	g.Go(func() error {
-		return probingGenerator.Run(ctx)
-	})
-
-	if err := g.Wait(); err != nil && err != context.Canceled {
-		log.Fatalf("Error: %v", err)
+	if err := probingGenerator.Run(ctx); err != nil && err != context.Canceled {
+		log.Fatalf("error on generator: %v", err)
 	}
 
-	log.Println("generator shutdown complete")
+	log.Println("shutdown complete")
 }

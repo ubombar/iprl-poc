@@ -42,6 +42,8 @@ type AgentManager interface {
 	Runner
 
 	MetaManager[*pb.ProbingAgentSpec, *pb.ProbingAgentStatus]
+
+	io.Closer
 }
 
 // GeneratorManager defines the interface for a Probing Directive Generator (PDG).
@@ -51,6 +53,8 @@ type GeneratorManager interface {
 	Runner
 
 	MetaManager[*pb.ProbingDirectiveGeneratorSpec, *pb.ProbingDirectiveGeneratorStatus]
+
+	io.Closer
 }
 
 type HTTPStreamer interface {
@@ -68,16 +72,10 @@ type OrchestratorManager interface {
 
 	MetaManager[*pb.ProbingOrchestratorSpec, *pb.ProbingOrchestratorStatus]
 
-	// EnqueueDirective adds a probing directive to the distribution queue.
-	// Called by generators to submit directives for routing to agents.
-	EnqueueDirective(ctx context.Context, directive *pb.ProbingDirective)
-
-	// EnqueueElement adds a forwarding information element to the collection queue.
-	// Called by agents to submit probe results.
-	EnqueueElement(ctx context.Context, element *pb.ForwardingInfoElement)
-
 	// This is for the http server
 	HTTPStreamer
+
+	io.Closer
 }
 
 // Pusher exposes a write-only channel used to push items into a component.

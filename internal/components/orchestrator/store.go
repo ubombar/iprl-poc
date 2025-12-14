@@ -50,7 +50,7 @@ func (c *componentStore) AddOrUpdateAgent(spec *pb.ProbingAgentSpec, status *pb.
 		// Also update spec in all generators' AgentSpecs list
 		for _, genStatus := range c.generatorStatus {
 			for i, agentSpec := range genStatus.AgentSpecs {
-				if agentSpec.InterfaceAddr == spec.InterfaceAddr {
+				if agentSpec.GrpcAddress == spec.GrpcAddress {
 					genStatus.AgentSpecs[i] = spec
 					break
 				}
@@ -62,7 +62,7 @@ func (c *componentStore) AddOrUpdateAgent(spec *pb.ProbingAgentSpec, status *pb.
 			// Check if agent already exists in generator's list
 			alreadyExists := false
 			for _, agentSpec := range genStatus.AgentSpecs {
-				if agentSpec.InterfaceAddr == spec.InterfaceAddr {
+				if agentSpec.GrpcAddress == spec.GrpcAddress {
 					alreadyExists = true
 					break
 				}
@@ -97,7 +97,7 @@ func (c *componentStore) RemoveAgent(uuid string) error {
 	// Remove agent spec from all generators and mark them as dirty
 	for genUuid, genStatus := range c.generatorStatus {
 		for i, agentSpec := range genStatus.AgentSpecs {
-			if agentSpec.InterfaceAddr == spec.InterfaceAddr {
+			if agentSpec.GrpcAddress == spec.GrpcAddress {
 				// Remove from slice
 				genStatus.AgentSpecs = append(genStatus.AgentSpecs[:i], genStatus.AgentSpecs[i+1:]...)
 				break

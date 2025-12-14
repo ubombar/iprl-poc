@@ -3,6 +3,8 @@ module iprl-demo
 go 1.24.4
 
 require (
+	github.com/cenkalti/backoff v2.2.1+incompatible
+	github.com/cenkalti/backoff/v4 v4.3.0
 	github.com/google/uuid v1.6.0
 	golang.org/x/sync v0.17.0
 	google.golang.org/grpc v1.77.0

@@ -2,10 +2,13 @@ package agent
 
 import (
 	"context"
+	"errors"
 	"log"
+	"net"
 	"sync"
 	"time"
 
+	"github.com/cenkalti/backoff"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -24,7 +27,9 @@ var _ pb.ProbingAgentInterfaceServer = (*AgentManager)(nil)
 type AgentManager struct {
 	pb.UnimplementedProbingAgentInterfaceServer
 
-	mu sync.RWMutex
+	mu   sync.RWMutex
+	once sync.Once
+	ctx  context.Context
 
 	currentSpec   *pb.ProbingAgentSpec
 	currentStatus *pb.ProbingAgentStatus
@@ -79,147 +84,152 @@ func (m *AgentManager) SetStatus(status *pb.ProbingAgentStatus) {
 // Run starts the agent's main processing loop.
 // It connects to the orchestrator, registers itself, and streams elements.
 // It blocks until the context is cancelled or max retries are exceeded.
-func (m *AgentManager) Run(ctx context.Context) error {
+func (m *AgentManager) Run(parent context.Context) error {
+	// This is for adding the reference of manager to this object.
 	m.prober.Register(m)
 
-	// try to unregister before shutdown
-	defer func() {
-		m.prober.Close()
+	g, ctx := errgroup.WithContext(parent)
+	m.ctx = ctx
 
-		status := m.GetStatus()
-		if status == nil {
-			return
+	g.Go(func() error {
+		return m.runProber(ctx)
+	})
+
+	g.Go(func() error {
+		return m.runElementStream(ctx)
+	})
+
+	g.Go(func() error {
+		return m.runRPCServer(ctx)
+	})
+
+	g.Go(func() error {
+		<-ctx.Done()
+		m.Close()
+		return nil
+	})
+
+	if err := g.Wait(); err != nil && err != context.Canceled {
+		return err
+	}
+	return nil
+}
+
+func (m *AgentManager) runProber(ctx context.Context) error {
+	return m.prober.Run(ctx)
+}
+
+func (m *AgentManager) runRPCServer(ctx context.Context) error {
+	grpcServer := grpc.NewServer()
+	m.Register(grpcServer)
+
+	lis, err := net.Listen("tcp", m.currentSpec.GrpcAddress)
+	if err != nil {
+		return err
+	}
+
+	log.Printf("grpc server listening on %s", m.currentSpec.GrpcAddress)
+
+	// Shutdown logic
+	go func() {
+		<-ctx.Done()
+		log.Println("grpc shutdown initiated")
+
+		done := make(chan struct{})
+
+		go func() {
+			grpcServer.GracefulStop()
+			close(done)
+		}()
+
+		select {
+		case <-done:
+		case <-time.After(100 * time.Millisecond):
+			grpcServer.Stop()
 		}
 
-		// Create a new context for cleanup since the original may be cancelled
-		cleanupCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-
-		client, conn, err := clients.NewInsecureOrchestratorClient(m.GetSpec().OrchestratorAddress)
-		if err != nil {
-			log.Printf("failed to connect to orchestrator: %v", err)
-			return
-		}
-		defer conn.Close()
-
-		_, err = client.Leave(cleanupCtx, &pb.LeaveRequest{
-			Uuid: status.Uuid,
-		})
-		if err != nil {
-			log.Printf("failed to leave the cluster: %v", err)
-			return
-		}
-
-		log.Printf("agent with uuid=%s successfully left the cluster", status.Uuid)
 	}()
 
-	g, ctx2 := errgroup.WithContext(ctx)
-
-	g.Go(func() error {
-		return m.prober.Run(ctx2)
-	})
-
-	g.Go(func() error {
-		numRetries := uint32(0)
-
-		for {
-			// Check if max retries exceeded
-			spec := m.GetSpec()
-			if spec.NumRetries != 0 && numRetries > spec.NumRetries {
-				log.Println("max number of retries exceeded, exiting")
-				return nil
-			}
-
-			// Check if context is cancelled
-			select {
-			case <-ctx.Done():
-				return nil
-			default:
-			}
-
-			// Try to connect to the orchestrator
-			client, conn, err := clients.NewInsecureOrchestratorClient(spec.OrchestratorAddress)
-			if err != nil {
-				numRetries++
-				log.Printf("failed to connect to the orchestrator (num_tries=%d): %v", numRetries, err)
-				if conn != nil {
-					conn.Close()
-				}
-				if err := util.SleepWithContext(ctx, 5*time.Second); err != nil {
-					return nil
-				}
-				continue
-			}
-
-			// If the uuid is not given by the orchestrator we need to register the ourselves.
-			if m.currentStatus == nil {
-				res, err := client.Join(ctx, &pb.JoinRequest{
-					Spec: &pb.JoinRequest_ProbingAgentSpec{
-						ProbingAgentSpec: spec,
-					},
-				})
-				if err != nil {
-					numRetries++
-					log.Printf("failed to join to the cluster (num_tries=%d): %v", numRetries, err)
-					conn.Close()
-					if err := util.SleepWithContext(ctx, 5*time.Second); err != nil {
-						return nil
-					}
-					continue
-				}
-
-				// Validate response
-				if res.GetProbingAgentStatus() == nil {
-					log.Println("failed to get a valid status from the orchestrator, this is likely a bug on the orchestrator side")
-					conn.Close()
-					continue
-				}
-				m.SetStatus(res.GetProbingAgentStatus())
-				log.Printf("agent with uuid=%s successfully joined to the cluster", m.GetStatus().Uuid)
-			}
-
-			// Reset retries on successful registration
-			numRetries = 0
-
-			// Try to establish a stream
-			stream, err := client.PushForwardingInfoElements(ctx)
-			if err != nil {
-				numRetries++
-				log.Printf("failed to open stream with the orchestrator (num_tries=%d): %v", numRetries, err)
-				conn.Close()
-				if err := util.SleepWithContext(ctx, 5*time.Second); err != nil {
-					return nil
-				}
-				continue
-			}
-
-			// Stream until error or context cancellation
-			m.streamElements(ctx, stream)
-
-			// Close the stream
-			if err := stream.CloseSend(); err != nil {
-				numRetries++
-				log.Printf("failed to close stream with the orchestrator (num_tries=%d): %v", numRetries, err)
-			}
-
-			conn.Close()
-
-			// Sleep before reconnecting
-			if err := util.SleepWithContext(ctx, 5*time.Second); err != nil {
-				return nil
-			}
-		}
-	})
-
-	if err := g.Wait(); err != nil {
-		log.Printf("there was an error on the run method: %v", err)
+	// Blocks until Stop / GracefulStop
+	err = grpcServer.Serve(lis)
+	if err != nil {
+		return err
 	}
 
 	return nil
 }
 
+func (m *AgentManager) runElementStream(ctx context.Context) error {
+	bo := backoff.NewExponentialBackOff()
+
+	bo.InitialInterval = 1 * time.Second
+	bo.MaxInterval = 5 * time.Second
+	bo.MaxElapsedTime = 0 // retry forever
+
+	// Tie backoff lifecycle to context
+	boCtx := backoff.WithContext(bo, ctx)
+
+	return backoff.Retry(func() error {
+		// Exit cleanly on shutdown
+		if err := ctx.Err(); err != nil {
+			return backoff.Permanent(err)
+		}
+
+		spec := m.GetSpec()
+
+		if spec == nil {
+			return errors.New("spec nil")
+		}
+
+		client, conn, err := clients.NewInsecureOrchestratorClient(spec.OrchestratorAddress)
+		if err != nil {
+			return err // retry
+		}
+		defer conn.Close()
+
+		if err := m.joinCluster(ctx, client, spec); err != nil {
+			return err // retry
+		}
+
+		stream, err := m.openDirectiveStream(ctx, client)
+		if err != nil {
+			return err // retry
+		}
+
+		if err := m.streamElements(ctx, stream); err != nil {
+			return err // retry
+		}
+
+		return nil
+	}, boCtx)
+}
+
+func (m *AgentManager) joinCluster(ctx context.Context, client pb.ProbingOrchestratorInterfaceClient, spec *pb.ProbingAgentSpec) error {
+	res, err := client.Join(ctx, &pb.JoinRequest{
+		Spec: &pb.JoinRequest_ProbingAgentSpec{
+			ProbingAgentSpec: spec,
+		},
+	})
+	if err != nil {
+		return err
+	}
+
+	status := res.GetProbingAgentStatus()
+	if status == nil {
+		return errors.New("orchestrator returned nil generator status")
+	}
+
+	m.SetStatus(status)
+	log.Printf("joined orchestrator cluster as generator %s", status.Uuid)
+	return nil
+}
+
+func (m *AgentManager) openDirectiveStream(ctx context.Context, client pb.ProbingOrchestratorInterfaceClient) (pb.ProbingOrchestratorInterface_PushForwardingInfoElementsClient, error) {
+	return client.PushForwardingInfoElements(ctx)
+}
+
 // streamElements receives directives and sends back forwarding info elements.
-func (m *AgentManager) streamElements(ctx context.Context, stream grpc.BidiStreamingClient[pb.ForwardingInfoElement, pb.ProbingDirective]) {
+func (m *AgentManager) streamElements(ctx context.Context, stream grpc.BidiStreamingClient[pb.ForwardingInfoElement, pb.ProbingDirective]) error {
 	g, ctx := errgroup.WithContext(ctx)
 
 	// Receive and push to the push channel
@@ -268,11 +278,17 @@ func (m *AgentManager) streamElements(ctx context.Context, stream grpc.BidiStrea
 	// Wait for all goroutines
 	if err := g.Wait(); err != nil {
 		log.Printf("there was an error on the probing method: %v", err)
-		return
+		return err
 	}
+
+	return nil
 }
 
 // Register registers the generator with a gRPC server.
 func (m *AgentManager) Register(server *grpc.Server) {
 	pb.RegisterProbingAgentInterfaceServer(server, m)
+}
+
+func (m *AgentManager) Close() error {
+	return nil
 }

@@ -49,9 +49,6 @@ service ProbingOrchestratorInterface {
 
   // Any component who wants to stream probing directives to the orchstrator should use this.
   rpc PushForwardingInfoElements(stream ForwardingInfoElement) returns (stream ProbingDirective);
-
-  // This is the actual streaming the generated forwarding info elements.
-  rpc PullForwardingInfoElements(google.protobuf.Empty) returns (stream ForwardingInfoElement);
 }
 
 // === Common types === 
@@ -73,7 +70,7 @@ message VantagePoint {
 message ProbingAgentSpec {
   string            software_version = 2;
   string            interface_version = 3;
-  string            interface_addr = 4;
+  string            grpc_address = 4;
   VantagePoint      vantage_point = 5;
   uint32            directive_buffer_length = 6;
   string            orchestrator_address = 9;
@@ -89,7 +86,7 @@ message ProbingAgentStatus {
 message ProbingDirectiveGeneratorSpec {
   string                software_version = 2;
   string                interface_version = 3;
-  string                interface_addr = 4;
+  string                grpc_address = 4;
   repeated Protocol     protocols = 5;
   uint32                min_ttl = 7;
   uint32                max_ttl = 8;
@@ -108,7 +105,8 @@ message ProbingDirectiveGeneratorStatus {
 message ProbingOrchestratorSpec {
   string software_version = 2;
   string interface_version = 3;
-  string interface_addr = 4;
+  string http_address = 11;
+  string grpc_address = 4;
   uint32 directive_buffer_length = 6;
   uint32 element_buffer_length = 7;
   uint32 default_global_probing_rate_cap = 8;

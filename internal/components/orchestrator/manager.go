@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"log"
+	"net"
 	"net/http"
 	"sync"
 	"time"
@@ -37,7 +38,9 @@ var _ pb.ProbingOrchestratorInterfaceServer = (*OrchestratorManager)(nil)
 type OrchestratorManager struct {
 	pb.UnimplementedProbingOrchestratorInterfaceServer
 
-	mu sync.RWMutex
+	mu   sync.RWMutex
+	once sync.Once
+	ctx  context.Context
 
 	currentSpec   *pb.ProbingOrchestratorSpec
 	currentStatus *pb.ProbingOrchestratorStatus
@@ -93,26 +96,6 @@ func (m *OrchestratorManager) SetStatus(status *pb.ProbingOrchestratorStatus) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.currentStatus = status
-}
-
-// EnqueueDirective adds a probing directive to the distribution queue.
-func (m *OrchestratorManager) EnqueueDirective(ctx context.Context, directive *pb.ProbingDirective) {
-	select {
-	case <-ctx.Done():
-		return
-	case m.directiveCh <- directive:
-		return
-	}
-}
-
-// EnqueueElement adds a forwarding information element to the collection queue.
-func (m *OrchestratorManager) EnqueueElement(ctx context.Context, element *pb.ForwardingInfoElement) {
-	select {
-	case <-ctx.Done():
-		return
-	case m.elementCh <- element:
-		return
-	}
 }
 
 func (m *OrchestratorManager) Join(ctx context.Context, req *pb.JoinRequest) (*pb.JoinResponse, error) {
@@ -188,48 +171,36 @@ func (m *OrchestratorManager) joinGenerator(spec *pb.ProbingDirectiveGeneratorSp
 	}, nil
 }
 
-// PushProbingDirectives receives directives from generators.
 func (m *OrchestratorManager) PushProbingDirectives(stream grpc.ClientStreamingServer[pb.ProbingDirective, emptypb.Empty]) error {
 	ctx := stream.Context()
 
 	for {
-		select {
-		case <-ctx.Done():
-			return nil
-		default:
-		}
-
 		directive, err := stream.Recv()
 		if err != nil {
 			if err == io.EOF {
-				return nil
+				// client finished sending
+				return stream.SendAndClose(&emptypb.Empty{})
 			}
 			return err
 		}
 
-		m.EnqueueDirective(ctx, directive)
+		// Non-blocking / cancellation-aware enqueue
+		select {
+		case <-ctx.Done():
+			return nil
+		case m.directiveCh <- directive:
+			// ok
+		}
 	}
 }
 
-// PushForwardingInfoElements handles bidirectional streaming with agents.
-// Receives elements from agents and sends directives to them.
 func (m *OrchestratorManager) PushForwardingInfoElements(stream grpc.BidiStreamingServer[pb.ForwardingInfoElement, pb.ProbingDirective]) error {
-	ctx, cancel := context.WithCancel(stream.Context())
-	defer cancel()
-
-	g, ctx := errgroup.WithContext(ctx)
+	g, ctx := errgroup.WithContext(stream.Context())
 
 	// Receive elements from agent
 	g.Go(func() error {
-		defer cancel() // Cancel context when receive ends
 		for {
-			select {
-			case <-ctx.Done():
-				return nil
-			default:
-			}
-
-			element, err := stream.Recv()
+			elem, err := stream.Recv()
 			if err != nil {
 				if err == io.EOF {
 					return nil
@@ -237,7 +208,14 @@ func (m *OrchestratorManager) PushForwardingInfoElements(stream grpc.BidiStreami
 				return err
 			}
 
-			m.EnqueueElement(ctx, element)
+			select {
+			case <-ctx.Done():
+				return nil
+			case <-m.ctx.Done():
+				return nil
+			case m.elementCh <- elem:
+				// ok
+			}
 		}
 	})
 
@@ -246,8 +224,17 @@ func (m *OrchestratorManager) PushForwardingInfoElements(stream grpc.BidiStreami
 		for {
 			select {
 			case <-ctx.Done():
-				return nil // Exit cleanly on context cancellation
-			case directive := <-m.directiveCh:
+				return nil
+
+			case <-m.ctx.Done():
+				return nil
+
+			case directive, ok := <-m.directiveCh:
+				if !ok {
+					// orchestrator shutting down
+					return nil
+				}
+
 				if err := stream.Send(directive); err != nil {
 					return err
 				}
@@ -255,60 +242,73 @@ func (m *OrchestratorManager) PushForwardingInfoElements(stream grpc.BidiStreami
 		}
 	})
 
-	return g.Wait()
-}
-
-// PullForwardingInfoElements streams collected elements to subscribers.
-func (m *OrchestratorManager) PullForwardingInfoElements(_ *emptypb.Empty, stream grpc.ServerStreamingServer[pb.ForwardingInfoElement]) error {
-	ctx := stream.Context()
-
-	for {
-		select {
-		case <-ctx.Done():
-			return nil
-		case element := <-m.elementCh:
-			if err := stream.Send(element); err != nil {
-				return err
-			}
-		}
+	if err := g.Wait(); err != nil && err != context.Canceled {
+		return err
 	}
+	return nil
 }
 
 // Run starts the orchestrator's main processing loop.
 func (m *OrchestratorManager) Run(ctx context.Context) error {
-	log.Println("orchestrator started")
+	g, ctx := errgroup.WithContext(ctx)
+	m.ctx = ctx
 
-	// Start background tasks
-	go m.runNotificationLoop(ctx)
-	go m.runFanout(ctx)
+	// Start all go routines, if one fails context is cancelled for everyone.
+	g.Go(func() error {
+		return m.runNotificationLoop(ctx)
+	})
 
-	// Wait for context cancellation
-	<-ctx.Done()
+	g.Go(func() error {
+		return m.runFanout(ctx)
+	})
 
-	log.Println("orchestrator stopped")
+	g.Go(func() error {
+		return m.runRPCServer(ctx)
+	})
+
+	g.Go(func() error {
+		return m.runHTTPServer(ctx)
+	})
+
+	g.Go(func() error {
+		<-ctx.Done()
+		m.Close()
+		return nil
+	})
+
+	if err := g.Wait(); err != nil && err != context.Canceled {
+		return err
+	}
+
 	return nil
 }
 
 // runNotificationLoop periodically notifies components of status changes.
-func (m *OrchestratorManager) runNotificationLoop(ctx context.Context) {
+func (m *OrchestratorManager) runNotificationLoop(ctx context.Context) error {
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
 
 	for {
 		select {
 		case <-ctx.Done():
-			return
+			return ctx.Err()
 		case <-ticker.C:
-			m.notifyChangedAgents(ctx)
-			m.notifyChangedGenerators(ctx)
+			if err := m.notifyChangedAgents(ctx); err != nil {
+				return err
+			}
+			if err := m.notifyChangedGenerators(ctx); err != nil {
+				return err
+			}
 		}
 	}
 }
 
-func (m *OrchestratorManager) notifyChangedAgents(ctx context.Context) {
+func (m *OrchestratorManager) notifyChangedAgents(ctx context.Context) error {
 	dirtyUuids := m.store.GetDirtyAgentUuids()
+
+	// No dirty agent to notify
 	if len(dirtyUuids) == 0 {
-		return
+		return nil
 	}
 
 	for _, uuid := range dirtyUuids {
@@ -318,7 +318,7 @@ func (m *OrchestratorManager) notifyChangedAgents(ctx context.Context) {
 		}
 
 		go func(spec *pb.ProbingAgentSpec, status *pb.ProbingAgentStatus) {
-			client, conn, err := clients.NewInsecureAgentClient(spec.InterfaceAddr)
+			client, conn, err := clients.NewInsecureAgentClient(spec.GrpcAddress)
 			if err != nil {
 				log.Printf("failed to connect to agent %s: %v", status.Uuid, err)
 				return
@@ -334,12 +334,14 @@ func (m *OrchestratorManager) notifyChangedAgents(ctx context.Context) {
 			log.Printf("notified agent %s", status.Uuid)
 		}(spec, status)
 	}
+
+	return nil
 }
 
-func (m *OrchestratorManager) notifyChangedGenerators(ctx context.Context) {
+func (m *OrchestratorManager) notifyChangedGenerators(ctx context.Context) error {
 	dirtyUuids := m.store.GetDirtyGeneratorUuids()
 	if len(dirtyUuids) == 0 {
-		return
+		return nil
 	}
 
 	for _, uuid := range dirtyUuids {
@@ -349,7 +351,7 @@ func (m *OrchestratorManager) notifyChangedGenerators(ctx context.Context) {
 		}
 
 		go func(spec *pb.ProbingDirectiveGeneratorSpec, status *pb.ProbingDirectiveGeneratorStatus) {
-			client, conn, err := clients.NewInsecureGeneratorClient(spec.InterfaceAddr)
+			client, conn, err := clients.NewInsecureGeneratorClient(spec.GrpcAddress)
 			if err != nil {
 				log.Printf("failed to connect to generator %s: %v", status.Uuid, err)
 				return
@@ -365,33 +367,110 @@ func (m *OrchestratorManager) notifyChangedGenerators(ctx context.Context) {
 			log.Printf("notified generator %s", status.Uuid)
 		}(spec, status)
 	}
+	return nil
 }
 
-func (m *OrchestratorManager) runFanout(ctx context.Context) {
+func (m *OrchestratorManager) runFanout(ctx context.Context) error {
 	for {
 		select {
 		case <-ctx.Done():
-			return
+			return ctx.Err()
 
 		case elem, ok := <-m.elementCh:
 			if !ok {
-				return
+				return errors.New("element channel is closed")
 			}
 
 			m.mu.RLock()
-			for chUuid, ch := range m.clients {
+			for _, ch := range m.clients {
 				select {
 				case ch <- elem:
-					log.Printf("delivered: %v\n", chUuid)
 					// delivered
 				default:
-					log.Printf("dropped: %v\n", chUuid)
-					// client is slow → drop
+					// client is slow → drop: we need to see what happens if the client is too slow to
+					// consume the elements, should we drop the first added? last added? etc.
 				}
 			}
 			m.mu.RUnlock()
+
+			// Maybe we can push it to some file later?
 		}
 	}
+}
+
+func (m *OrchestratorManager) runRPCServer(ctx context.Context) error {
+	grpcServer := grpc.NewServer()
+	m.Register(grpcServer)
+
+	lis, err := net.Listen("tcp", m.currentSpec.GrpcAddress)
+	if err != nil {
+		return err
+	}
+
+	log.Printf("grpc server listening on %s", m.currentSpec.GrpcAddress)
+
+	// Shutdown logic
+	go func() {
+		<-ctx.Done()
+		log.Println("grpc shutdown initiated")
+
+		done := make(chan struct{})
+
+		go func() {
+			grpcServer.GracefulStop()
+			close(done)
+		}()
+
+		select {
+		case <-done:
+		case <-time.After(100 * time.Millisecond):
+			grpcServer.Stop()
+		}
+
+	}()
+
+	// Blocks until Stop / GracefulStop
+	err = grpcServer.Serve(lis)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (m *OrchestratorManager) runHTTPServer(ctx context.Context) error {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/stream", m.Stream)
+
+	httpServer := &http.Server{
+		Addr:    m.currentSpec.HttpAddress,
+		Handler: mux,
+	}
+
+	log.Printf("http server listening on %s", m.currentSpec.HttpAddress)
+
+	go func() {
+		<-ctx.Done()
+		log.Println("http shutdown initiated")
+
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancel()
+
+		if err := httpServer.Shutdown(shutdownCtx); err != nil {
+			log.Printf("http graceful shutdown failed: %v", err)
+		}
+
+		// If still hanging after timeout, force close
+		if shutdownCtx.Err() == context.DeadlineExceeded {
+			_ = httpServer.Close()
+		}
+	}()
+
+	err := httpServer.ListenAndServe()
+	if err == http.ErrServerClosed {
+		return nil
+	}
+	return err
 }
 
 // Register registers the orchestrator with a gRPC server.
@@ -399,17 +478,31 @@ func (m *OrchestratorManager) Register(server *grpc.Server) {
 	pb.RegisterProbingOrchestratorInterfaceServer(server, m)
 }
 
-// Close closes the orchestrator's channels.
-func (m *OrchestratorManager) Close() {
-	close(m.directiveCh)
-	close(m.elementCh)
+func (m *OrchestratorManager) Close() error {
+	m.once.Do(func() {
+		m.mu.Lock()
+		defer m.mu.Unlock()
+
+		if m.directiveCh != nil {
+			close(m.directiveCh)
+			m.directiveCh = nil
+		}
+
+		if m.elementCh != nil {
+			close(m.elementCh)
+			m.elementCh = nil
+		}
+
+		// The m.client is manager by the Stream function to prevent double free.
+	})
+
+	return nil
 }
 
 // Stream implements HTTPStreamer interface for SSE streaming of ForwardingInfoElements
 func (m *OrchestratorManager) Stream(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	// ---- HTTP sanity checks ----
 	flusher, ok := w.(http.Flusher)
 	if !ok {
 		http.Error(w, "streaming unsupported", http.StatusInternalServerError)
@@ -420,7 +513,6 @@ func (m *OrchestratorManager) Stream(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
 
-	// ---- Register client ----
 	clientID := uuid.NewString()
 	clientCh := make(chan *pb.ForwardingInfoElement, 128)
 
@@ -441,6 +533,9 @@ func (m *OrchestratorManager) Stream(w http.ResponseWriter, r *http.Request) {
 	for {
 		select {
 		case <-ctx.Done():
+			return
+
+		case <-m.ctx.Done():
 			return
 
 		case elem, ok := <-clientCh:
